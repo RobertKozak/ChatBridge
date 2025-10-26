@@ -83,3 +83,4 @@ chatbridge-*.tar.gz
 test/
 tests/
 *.test
+docker/cloudflared/credentials.json
