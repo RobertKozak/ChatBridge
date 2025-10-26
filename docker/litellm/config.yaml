@@ -73,12 +73,10 @@ litellm_settings:
   # Content Moderation (disabled - configure separately if needed)
   enable_content_moderation: false
 
-  # Fallbacks
+  # Fallbacks (simple list of model names)
   fallbacks:
-    - model: gpt-4o-mini
-      cooldown_time: 60
-    - model: claude-3-5-haiku
-      cooldown_time: 60
+    - gpt-4o-mini
+    - claude-3-5-haiku
 
 # Success/Failure Callbacks (add monitoring services to enable)
 # success_callback: ["langfuse", "prometheus"]
