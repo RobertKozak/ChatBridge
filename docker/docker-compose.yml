@@ -2,7 +2,7 @@ services:
   # Traefik Reverse Proxy with SSL
   traefik:
     image: traefik:v2.11.0
-    container_name: traefik
+    container_name: chatbridge-traefik
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -37,7 +37,7 @@ services:
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
-    container_name: postgres
+    container_name: chatbridge-postgres
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -86,7 +86,7 @@ services:
   # Redis Cache
   redis:
     image: redis:7-alpine
-    container_name: redis
+    container_name: chatbridge-redis
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -119,7 +119,7 @@ services:
   # LiteLLM Proxy
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
-    container_name: litellm
+    container_name: chatbridge-litellm
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -189,7 +189,7 @@ services:
   # Open WebUI
   open-webui:
     image: ghcr.io/open-webui/open-webui:v0.4.5
-    container_name: open-webui
+    container_name: chatbridge-open-webui
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
@@ -257,7 +257,7 @@ services:
   # Backup Service
   backup:
     image: postgres:16-alpine
-    container_name: backup
+    container_name: chatbridge-backup
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
