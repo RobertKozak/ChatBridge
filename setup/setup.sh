@@ -37,7 +37,7 @@ echo -e "${BLUE}Version: $VERSION${NC}\n"
 
 # Function to print messages
 print_info() {
-  echo -e "${BLUE}[INFO]${NC} \n$1"
+  echo -e "\n${BLUE}[INFO]${NC} $1"
 }
 
 print_success() {
@@ -249,6 +249,7 @@ BACKUP_KEEP_DAYS=7
 
 # Optional configurations (leave empty if not used)
 WEBHOOK_URL=
+SEARCH_PROMPT_TEMPLATE=Generate a concise and focused web search query based on the user's question or conversation context. Return only the search query.
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
