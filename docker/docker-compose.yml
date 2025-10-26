@@ -17,9 +17,9 @@ services:
       - TZ=UTC
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/traefik.yml:ro
-      - ./traefik/dynamic:/dynamic:ro
-      - ./traefik/acme:/acme
+      - ../docker/traefik/traefik.yml:/traefik.yml:ro
+      - ../docker/traefik/dynamic:/dynamic:ro
+      - ../docker/traefik/acme:/acme
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
@@ -52,7 +52,7 @@ services:
       - PGDATA=/var/lib/postgresql/data/pgdata
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
+      - ../docker/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 10s
@@ -145,7 +145,7 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PORT=4000
     volumes:
-      - ./litellm/config.yaml:/app/config.yaml:ro
+      - ../docker/litellm/config.yaml:/app/config.yaml:ro
       - litellm_tmp:/tmp
     labels:
       - "traefik.enable=true"
@@ -262,8 +262,8 @@ services:
       - POSTGRES_HOST=postgres
       - BACKUP_KEEP_DAYS=7
     volumes:
-      - ./backups:/backups
-      - ./backup-script.sh:/backup-script.sh:ro
+      - ../backups:/backups
+      - ../setup/backup-script.sh:/backup-script.sh:ro
     entrypoint: ["/bin/sh", "-c"]
     command:
       - |

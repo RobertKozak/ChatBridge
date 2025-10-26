@@ -159,16 +159,16 @@ get_api_keys() {
 # Create directory structure
 create_directories() {
     print_info "Creating directory structure..."
-    
-    mkdir -p traefik/dynamic
-    mkdir -p traefik/acme
-    mkdir -p litellm
+
+    mkdir -p docker/traefik/dynamic
+    mkdir -p docker/traefik/acme
+    mkdir -p docker/litellm
     mkdir -p backups
     mkdir -p logs
-    
-    chmod 600 traefik/acme
-    chmod +x backup-script.sh
-    
+
+    chmod 600 docker/traefik/acme
+    chmod +x setup/backup-script.sh
+
     print_success "Directory structure created"
 }
 
@@ -257,12 +257,12 @@ update_traefik_config() {
     # Cross-platform sed compatibility (works on both Linux and macOS)
     if sed --version >/dev/null 2>&1; then
         # GNU sed (Linux)
-        sed -i "s/your-domain.com/${DOMAIN}/g" traefik/traefik.yml
-        sed -i "s/admin@your-domain.com/${EMAIL}/g" traefik/traefik.yml
+        sed -i "s/your-domain.com/${DOMAIN}/g" docker/traefik/traefik.yml
+        sed -i "s/admin@your-domain.com/${EMAIL}/g" docker/traefik/traefik.yml
     else
         # BSD sed (macOS)
-        sed -i '' "s/your-domain.com/${DOMAIN}/g" traefik/traefik.yml
-        sed -i '' "s/admin@your-domain.com/${EMAIL}/g" traefik/traefik.yml
+        sed -i '' "s/your-domain.com/${DOMAIN}/g" docker/traefik/traefik.yml
+        sed -i '' "s/admin@your-domain.com/${EMAIL}/g" docker/traefik/traefik.yml
     fi
 
     print_success "Traefik configuration updated"
@@ -274,7 +274,7 @@ update_litellm_config() {
     
     # This is already set up to read from environment variables
     # Just ensure the file exists
-    if [ ! -f "litellm/config.yaml" ]; then
+    if [ ! -f "docker/litellm/config.yaml" ]; then
         print_error "LiteLLM config file not found"
         exit 1
     fi
@@ -298,18 +298,18 @@ init_docker() {
 # Pull Docker images
 pull_images() {
     print_info "Pulling Docker images (this may take several minutes)..."
-    
-    docker-compose pull
-    
+
+    docker-compose -f docker/docker-compose.yml pull
+
     print_success "Docker images pulled successfully"
 }
 
 # Start services
 start_services() {
     print_info "Starting services..."
-    
-    docker-compose up -d
-    
+
+    docker-compose -f docker/docker-compose.yml up -d
+
     print_success "Services started"
 }
 
@@ -321,7 +321,7 @@ wait_for_services() {
     local attempt=0
     
     while [ $attempt -lt $max_attempts ]; do
-        if docker-compose ps | grep -q "unhealthy"; then
+        if docker-compose -f docker/docker-compose.yml ps | grep -q "unhealthy"; then
             attempt=$((attempt + 1))
             echo -n "."
             sleep 5
@@ -333,7 +333,7 @@ wait_for_services() {
     done
     
     echo ""
-    print_warning "Some services may still be starting. Check with: docker-compose ps"
+    print_warning "Some services may still be starting. Check with: docker-compose -f docker/docker-compose.yml ps"
 }
 
 # Display credentials
@@ -390,11 +390,11 @@ display_post_install() {
     echo "   - Create your admin account (first user becomes admin)"
     echo ""
     echo "4. Useful Commands:"
-    echo "   - View logs: docker-compose logs -f [service-name]"
-    echo "   - Restart services: docker-compose restart"
-    echo "   - Stop services: docker-compose down"
-    echo "   - Update services: docker-compose pull && docker-compose up -d"
-    echo "   - Backup manually: docker-compose exec backup /backup-script.sh"
+    echo "   - View logs: docker-compose -f docker/docker-compose.yml logs -f [service-name]"
+    echo "   - Restart services: docker-compose -f docker/docker-compose.yml restart"
+    echo "   - Stop services: docker-compose -f docker/docker-compose.yml down"
+    echo "   - Update services: docker-compose -f docker/docker-compose.yml pull && docker-compose -f docker/docker-compose.yml up -d"
+    echo "   - Backup manually: docker-compose -f docker/docker-compose.yml exec backup /backup-script.sh"
     echo ""
     echo "5. Security Recommendations:"
     echo "   - Enable firewall: sudo ufw enable"
@@ -415,14 +415,14 @@ display_post_install() {
 
 # Backup existing installation
 backup_existing() {
-    if [ -f ".env" ] || [ -f "docker-compose.yml" ]; then
+    if [ -f ".env" ] || [ -f "docker/docker-compose.yml" ]; then
         print_warning "Existing installation detected"
         read -p "Backup existing configuration? (Y/n): " -n 1 -r
         echo
         if [[ ! $REPLY =~ ^[Nn]$ ]]; then
             backup_dir="backup_$(date +%Y%m%d_%H%M%S)"
             mkdir -p "$backup_dir"
-            cp -r .env docker-compose.yml traefik litellm "$backup_dir/" 2>/dev/null || true
+            cp -r .env docker "$backup_dir/" 2>/dev/null || true
             print_success "Backup created in $backup_dir"
         fi
     fi

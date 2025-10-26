@@ -24,20 +24,20 @@ print_section() {
 
 check_service() {
     local service=$1
-    local status=$(docker-compose ps -q $service 2>/dev/null)
+    local status=$(docker-compose -f docker/docker-compose.yml ps -q $service 2>/dev/null)
     
     if [ -z "$status" ]; then
         echo -e "  ${RED}✗${NC} $service: Not running"
         return 1
     fi
     
-    local health=$(docker inspect --format='{{.State.Health.Status}}' $(docker-compose ps -q $service) 2>/dev/null || echo "no-health-check")
+    local health=$(docker inspect --format='{{.State.Health.Status}}' $(docker-compose -f docker/docker-compose.yml ps -q $service) 2>/dev/null || echo "no-health-check")
     
     if [ "$health" = "healthy" ]; then
         echo -e "  ${GREEN}✓${NC} $service: Healthy"
         return 0
     elif [ "$health" = "no-health-check" ]; then
-        local running=$(docker inspect --format='{{.State.Running}}' $(docker-compose ps -q $service) 2>/dev/null)
+        local running=$(docker inspect --format='{{.State.Running}}' $(docker-compose -f docker/docker-compose.yml ps -q $service) 2>/dev/null)
         if [ "$running" = "true" ]; then
             echo -e "  ${GREEN}✓${NC} $service: Running"
             return 0
@@ -67,8 +67,8 @@ check_url() {
 print_header
 
 # Check if Docker Compose is available
-if ! command -v docker-compose &> /dev/null; then
-    echo -e "${RED}Error: docker-compose not found${NC}"
+if ! command -v docker-compose -f docker/docker-compose.yml &> /dev/null; then
+    echo -e "${RED}Error: docker-compose -f docker/docker/docker-compose.yml not found${NC}"
     exit 1
 fi
 
@@ -107,17 +107,17 @@ docker system df -v | grep -A 20 "Local Volumes" | grep -E "litellm|postgres|red
 
 # Database Status
 print_section "Database Status"
-if docker-compose ps postgres | grep -q "Up"; then
+if docker-compose -f docker/docker-compose.yml ps postgres | grep -q "Up"; then
     echo -e "\n${YELLOW}PostgreSQL:${NC}"
     
     # Connection count
-    conn_count=$(docker-compose exec -T postgres psql -U postgres -t -c "SELECT count(*) FROM pg_stat_activity;" 2>/dev/null | tr -d ' ')
-    max_conn=$(docker-compose exec -T postgres psql -U postgres -t -c "SHOW max_connections;" 2>/dev/null | tr -d ' ')
+    conn_count=$(docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -t -c "SELECT count(*) FROM pg_stat_activity;" 2>/dev/null | tr -d ' ')
+    max_conn=$(docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -t -c "SHOW max_connections;" 2>/dev/null | tr -d ' ')
     echo -e "  Connections: $conn_count / $max_conn"
     
     # Database sizes
     echo -e "\n  Database Sizes:"
-    docker-compose exec -T postgres psql -U postgres -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) as size FROM pg_database WHERE datname IN ('litellm', 'openwebui', 'postgres');" 2>/dev/null | tail -n +3 | head -n -2 | while read line; do
+    docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -c "SELECT datname, pg_size_pretty(pg_database_size(datname)) as size FROM pg_database WHERE datname IN ('litellm', 'openwebui', 'postgres');" 2>/dev/null | tail -n +3 | head -n -2 | while read line; do
         echo "    $line"
     done
 else
@@ -125,9 +125,9 @@ else
 fi
 
 # Redis Status
-if docker-compose ps redis | grep -q "Up"; then
+if docker-compose -f docker/docker-compose.yml ps redis | grep -q "Up"; then
     echo -e "\n${YELLOW}Redis:${NC}"
-    redis_info=$(docker-compose exec -T redis redis-cli -a "${REDIS_PASSWORD}" INFO stats 2>/dev/null | grep -E "keyspace_hits|keyspace_misses" || echo "  Unable to fetch Redis stats")
+    redis_info=$(docker-compose -f docker/docker-compose.yml exec -T redis redis-cli -a "${REDIS_PASSWORD}" INFO stats 2>/dev/null | grep -E "keyspace_hits|keyspace_misses" || echo "  Unable to fetch Redis stats")
     echo "  $redis_info"
 else
     echo -e "  ${RED}Redis not running${NC}"
@@ -135,7 +135,7 @@ fi
 
 # Recent Logs
 print_section "Recent Errors (Last 50 lines)"
-docker-compose logs --tail=50 2>&1 | grep -i "error\|fatal\|exception" | tail -n 10 || echo "  No recent errors found"
+docker-compose -f docker/docker-compose.yml logs --tail=50 2>&1 | grep -i "error\|fatal\|exception" | tail -n 10 || echo "  No recent errors found"
 
 # Backup Status
 print_section "Backup Status"
@@ -224,8 +224,8 @@ echo ""
 healthy_count=0
 total_count=6
 for service in traefik postgres redis litellm open-webui backup; do
-    if docker-compose ps -q $service &>/dev/null; then
-        status=$(docker inspect --format='{{.State.Health.Status}}' $(docker-compose ps -q $service) 2>/dev/null || echo "running")
+    if docker-compose -f docker/docker-compose.yml ps -q $service &>/dev/null; then
+        status=$(docker inspect --format='{{.State.Health.Status}}' $(docker-compose -f docker/docker-compose.yml ps -q $service) 2>/dev/null || echo "running")
         if [ "$status" = "healthy" ] || [ "$status" = "running" ]; then
             ((healthy_count++))
         fi

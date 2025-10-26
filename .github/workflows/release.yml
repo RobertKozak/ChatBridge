@@ -43,22 +43,22 @@ jobs:
       - name: Copy core files
         run: |
           # Core configuration files
-          cp docker-compose.yml release/chatbridge/
+          cp docker/docker-compose.yml release/chatbridge/
           cp .env.example release/chatbridge/
           cp .gitignore release/chatbridge/
 
           # Traefik configuration
-          cp traefik/traefik.yml release/chatbridge/traefik/
-          cp traefik/dynamic/security.yml release/chatbridge/traefik/dynamic/
+          cp docker/traefik/traefik.yml release/chatbridge/traefik/
+          cp docker/traefik/dynamic/security.yml release/chatbridge/traefik/dynamic/
 
           # LiteLLM configuration
-          cp litellm/config.yaml release/chatbridge/litellm/
+          cp docker/litellm/config.yaml release/chatbridge/litellm/
 
           # Scripts
-          cp setup.sh release/chatbridge/
-          cp manage.sh release/chatbridge/
-          cp health-check.sh release/chatbridge/
-          cp backup-script.sh release/chatbridge/
+          cp setup/setup.sh release/chatbridge/
+          cp setup/manage.sh release/chatbridge/
+          cp setup/health-check.sh release/chatbridge/
+          cp setup/backup-script.sh release/chatbridge/
           chmod +x release/chatbridge/*.sh
 
           # Documentation
@@ -100,7 +100,7 @@ jobs:
           ## Quick Start
 
           1. Extract the archive
-          2. Run: `./setup.sh`
+          2. Run: `./setup/setup.sh`
           3. Configure your domain and API keys
           4. Access at: https://ai.your-domain.com
 
@@ -172,15 +172,15 @@ jobs:
 
           # Check for required files
           required_files=(
-            "docker-compose.yml"
+            "docker/docker-compose.yml"
             ".env.example"
-            "setup.sh"
-            "manage.sh"
-            "health-check.sh"
-            "backup-script.sh"
-            "traefik/traefik.yml"
-            "traefik/dynamic/security.yml"
-            "litellm/config.yaml"
+            "setup/setup.sh"
+            "setup/manage.sh"
+            "setup/health-check.sh"
+            "setup/backup-script.sh"
+            "docker/traefik/traefik.yml"
+            "docker/traefik/dynamic/security.yml"
+            "docker/litellm/config.yaml"
           )
 
           missing_files=0
@@ -198,7 +198,7 @@ jobs:
             echo "✅ All required files present"
             echo ""
             echo "Next steps:"
-            echo "1. Run: ./setup.sh"
+            echo "1. Run: ./setup/setup.sh"
             echo "2. Follow the prompts to configure your domain and API keys"
             echo "3. Wait for services to start"
             echo "4. Access Open WebUI at https://ai.your-domain.com"
