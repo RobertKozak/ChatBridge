@@ -1,0 +1,286 @@
+name: Create Release Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.0.0, v2.1.3, etc.
+  workflow_dispatch:  # Allows manual triggering from GitHub UI
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        default: 'v1.0.0'
+
+jobs:
+  build-release:
+    name: Build and Package Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for changelog generation
+
+      - name: Set release version
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "VERSION=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+          echo "Release version: $(cat $GITHUB_OUTPUT | grep VERSION | cut -d= -f2)"
+
+      - name: Create directory structure
+        run: |
+          mkdir -p release/chatbridge
+          mkdir -p release/chatbridge/traefik/dynamic
+          mkdir -p release/chatbridge/litellm
+          mkdir -p release/chatbridge/backups
+          mkdir -p release/chatbridge/logs
+
+      - name: Copy core files
+        run: |
+          # Core configuration files
+          cp docker-compose.yml release/chatbridge/
+          cp .env.example release/chatbridge/
+          cp .gitignore release/chatbridge/
+
+          # Traefik configuration
+          cp traefik/traefik.yml release/chatbridge/traefik/
+          cp traefik/dynamic/security.yml release/chatbridge/traefik/dynamic/
+
+          # LiteLLM configuration
+          cp litellm/config.yaml release/chatbridge/litellm/
+
+          # Scripts
+          cp setup.sh release/chatbridge/
+          cp manage.sh release/chatbridge/
+          cp health-check.sh release/chatbridge/
+          cp backup-script.sh release/chatbridge/
+          chmod +x release/chatbridge/*.sh
+
+          # Documentation
+          cp README.md release/chatbridge/
+          cp QUICKSTART.md release/chatbridge/
+          cp FILE_STRUCTURE.md release/chatbridge/
+          cp INSTALLATION_INSTRUCTIONS.txt release/chatbridge/
+          cp QUICK_REFERENCE.txt release/chatbridge/
+          cp DELIVERY_SUMMARY.txt release/chatbridge/
+          cp COMPLETE_PACKAGE_README.txt release/chatbridge/
+          cp CHATBRIDGE_README.md release/chatbridge/
+          cp CHATBRIDGE_LOGO.txt release/chatbridge/
+
+      - name: Create database init script
+        run: |
+          # Add init-db.sql if it exists
+          if [ -f init-db.sql ]; then
+            cp init-db.sql release/chatbridge/
+          fi
+
+      - name: Generate release notes
+        id: release_notes
+        run: |
+          cat > release/chatbridge/RELEASE_NOTES.md <<'EOF'
+          # ChatBridge Release ${{ steps.version.outputs.VERSION }}
+
+          **Release Date:** $(date +"%Y-%m-%d")
+
+          ## What's Included
+
+          ChatBridge is a production-ready AI gateway that provides:
+
+          - **Unified LLM Access**: Bridge multiple AI providers (OpenAI, Anthropic) through a single interface
+          - **Beautiful UI**: ChatGPT-like interface via Open WebUI
+          - **Enterprise Security**: SSL/TLS, rate limiting, network isolation, security headers
+          - **Intelligent Routing**: Automatic failover, caching, cost optimization
+          - **Production Hardening**: Health checks, automated backups, monitoring
+
+          ## Quick Start
+
+          1. Extract the archive
+          2. Run: `./setup.sh`
+          3. Configure your domain and API keys
+          4. Access at: https://ai.your-domain.com
+
+          For detailed instructions, see `INSTALLATION_INSTRUCTIONS.txt`
+
+          ## System Requirements
+
+          - Linux server (Ubuntu 20.04+ recommended)
+          - Docker 20.10+
+          - Docker Compose 2.0+
+          - 4GB+ RAM (8GB recommended)
+          - 20GB+ disk space
+          - Domain with DNS access
+
+          ## Services Included
+
+          - **Open WebUI** (v0.4.5) - User interface at ai.your-domain.com
+          - **LiteLLM** (v1.52.7) - API gateway at admin.your-domain.com
+          - **Traefik** (v2.11.0) - Reverse proxy with automatic SSL
+          - **PostgreSQL** (16) - Primary database
+          - **Redis** (7) - Caching layer
+          - **Automated Backups** - Daily database backups
+
+          ## Features
+
+          ### Security
+          - ✅ SSL/TLS with Let's Encrypt
+          - ✅ Rate limiting on all endpoints
+          - ✅ Security headers (HSTS, CSP, XSS)
+          - ✅ Network isolation
+          - ✅ Non-root containers
+          - ✅ Read-only filesystems
+
+          ### High Availability
+          - ✅ Health checks for all services
+          - ✅ Automatic service restart
+          - ✅ Resource limits and reservations
+          - ✅ Database connection pooling
+          - ✅ Redis caching
+
+          ### Monitoring
+          - ✅ Structured JSON logging
+          - ✅ Health check scripts
+          - ✅ Daily automated backups
+          - ✅ Backup retention (7 days)
+
+          ## Support
+
+          - Documentation: See README.md and QUICKSTART.md
+          - Issues: https://github.com/${{ github.repository }}/issues
+
+          ## License
+
+          See LICENSE file for details.
+
+          ---
+
+          **Made with ❤️ for small businesses needing secure AI infrastructure**
+          EOF
+
+      - name: Create installation verification script
+        run: |
+          cat > release/chatbridge/verify-installation.sh <<'EOF'
+          #!/bin/bash
+
+          echo "ChatBridge Installation Verification"
+          echo "====================================="
+          echo ""
+
+          # Check for required files
+          required_files=(
+            "docker-compose.yml"
+            ".env.example"
+            "setup.sh"
+            "manage.sh"
+            "health-check.sh"
+            "backup-script.sh"
+            "traefik/traefik.yml"
+            "traefik/dynamic/security.yml"
+            "litellm/config.yaml"
+          )
+
+          missing_files=0
+          for file in "${required_files[@]}"; do
+            if [ ! -f "$file" ]; then
+              echo "✗ Missing: $file"
+              missing_files=$((missing_files + 1))
+            else
+              echo "✓ Found: $file"
+            fi
+          done
+
+          echo ""
+          if [ $missing_files -eq 0 ]; then
+            echo "✅ All required files present"
+            echo ""
+            echo "Next steps:"
+            echo "1. Run: ./setup.sh"
+            echo "2. Follow the prompts to configure your domain and API keys"
+            echo "3. Wait for services to start"
+            echo "4. Access Open WebUI at https://ai.your-domain.com"
+          else
+            echo "❌ Installation incomplete: $missing_files files missing"
+            exit 1
+          fi
+          EOF
+          chmod +x release/chatbridge/verify-installation.sh
+
+      - name: Create checksums
+        run: |
+          cd release/chatbridge
+          find . -type f -exec sha256sum {} \; > ../CHECKSUMS.txt
+          cd ../..
+
+      - name: Create release archive
+        run: |
+          cd release
+          tar -czf chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz chatbridge/
+          sha256sum chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz > chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+          cd ..
+
+      - name: Generate changelog
+        id: changelog
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            # Get commits since last tag
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              echo "## Changelog" > CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              git log ${PREV_TAG}..HEAD --pretty=format:"- %s" >> CHANGELOG.md
+            else
+              echo "## Changelog" > CHANGELOG.md
+              echo "" >> CHANGELOG.md
+              echo "Initial release" >> CHANGELOG.md
+            fi
+          else
+            echo "## Changelog" > CHANGELOG.md
+            echo "" >> CHANGELOG.md
+            echo "Manual release: ${{ github.event.inputs.version }}" >> CHANGELOG.md
+          fi
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.version.outputs.VERSION }}
+          name: ChatBridge ${{ steps.version.outputs.VERSION }}
+          body_path: CHANGELOG.md
+          files: |
+            release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz
+            release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+            release/CHECKSUMS.txt
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: chatbridge-${{ steps.version.outputs.VERSION }}
+          path: |
+            release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz
+            release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz.sha256
+            release/CHECKSUMS.txt
+          retention-days: 90
+
+      - name: Release Summary
+        run: |
+          echo "## Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ steps.version.outputs.VERSION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Archive:** chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Package Contents" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          tar -tzf release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz | head -n 30 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Checksums" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          cat release/chatbridge-${{ steps.version.outputs.VERSION }}.tar.gz.sha256 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
