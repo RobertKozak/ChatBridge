@@ -437,7 +437,8 @@ load_existing_config() {
 
     # Extract values we need
     DOMAIN=${DOMAIN:-}
-    EMAIL=$(grep -E "^# Email.*Let's Encrypt" .env 2>/dev/null | head -1 || echo "")
+    # Email is not stored in .env, extract from traefik config
+    EMAIL=$(grep "email:" docker/traefik/traefik.yml 2>/dev/null | sed 's/.*email: //' | tr -d '"' || echo "admin@${DOMAIN}")
     OPENAI_KEY=${OPENAI_API_KEY:-}
     ANTHROPIC_KEY=${ANTHROPIC_API_KEY:-}
     AZURE_KEY=${AZURE_API_KEY:-}
