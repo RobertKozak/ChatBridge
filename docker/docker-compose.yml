@@ -1,7 +1,7 @@
 services:
   # Traefik Reverse Proxy with SSL
   traefik:
-    image: traefik:v2.11.0
+    image: traefik:v3.5.3
     container_name: chatbridge-traefik
     restart: unless-stopped
     security_opt:
@@ -21,9 +21,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.traefik.rule=Host(`traefik.${DOMAIN}`)"
-      - "traefik.http.routers.traefik.entrypoints=websecure"
-      - "traefik.http.routers.traefik.tls=true"
-      - "traefik.http.routers.traefik.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.traefik.entrypoints=web"
       - "traefik.http.routers.traefik.service=api@internal"
       - "traefik.http.routers.traefik.middlewares=auth"
       - "traefik.http.middlewares.auth.basicauth.users=${TRAEFIK_BASIC_AUTH}"
@@ -34,9 +32,24 @@ services:
       retries: 3
       start_period: 40s
 
+  # Cloudflare Tunnel
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: chatbridge-cloudflared
+    restart: unless-stopped
+    command: tunnel --config /etc/cloudflared/config.yml run
+    networks:
+      - frontend
+    volumes:
+      - ../docker/cloudflared/config.yml:/etc/cloudflared/config.yml:ro
+      - ../docker/cloudflared/credentials.json:/etc/cloudflared/credentials.json:ro
+    depends_on:
+      traefik:
+        condition: service_healthy
+
   # PostgreSQL Database
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: chatbridge-postgres
     restart: unless-stopped
     security_opt:
@@ -85,20 +98,26 @@ services:
 
   # Redis Cache
   redis:
-    image: redis:7-alpine
+    image: redis:8-alpine
     container_name: chatbridge-redis
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
     networks:
       - backend
-    command: >
-      redis-server
-      --requirepass ${REDIS_PASSWORD}
-      --maxmemory 256mb
-      --maxmemory-policy allkeys-lru
-      --save 60 1000
-      --appendonly yes
+    command:
+      - redis-server
+      - --requirepass
+      - ${REDIS_PASSWORD}
+      - --maxmemory
+      - 256mb
+      - --maxmemory-policy
+      - allkeys-lru
+      - --save
+      - "60"
+      - "1000"
+      - --appendonly
+      - "yes"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -119,11 +138,13 @@ services:
   # LiteLLM Proxy
   litellm:
     image: ghcr.io/berriai/litellm:main-stable
+    platform: linux/amd64
     container_name: chatbridge-litellm
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
-    read_only: true
+    # Note: read_only disabled for Prisma migrations to work properly
+    # read_only: true
     cap_drop:
       - ALL
     cap_add:
@@ -142,19 +163,25 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PORT=4000
-      - LITELLM_MIGRATION_DIR=/app/migrations
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
     volumes:
       - ../docker/litellm/config.yaml:/app/config.yaml:ro
       - litellm_tmp:/tmp
-      - litellm_migrations:/app/migrations
+    command: ["--config", "/app/config.yaml", "--port", "4000"]
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.litellm.rule=Host(`admin.${DOMAIN}`)"
-      - "traefik.http.routers.litellm.entrypoints=websecure"
-      - "traefik.http.routers.litellm.tls=true"
-      - "traefik.http.routers.litellm.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.litellm.entrypoints=web"
       - "traefik.http.services.litellm.loadbalancer.server.port=4000"
-      - "traefik.http.routers.litellm.middlewares=litellm-ratelimit,security-headers"
+      - "traefik.http.routers.litellm-root.rule=Host(`admin.${DOMAIN}`) && Path(`/`)"
+      - "traefik.http.routers.litellm-root.entrypoints=web"
+      - "traefik.http.routers.litellm-root.middlewares=litellm-redirect"
+      - "traefik.http.routers.litellm-root.priority=100"
+      - "traefik.http.routers.litellm.middlewares=litellm-ratelimit,security-headers@file"
+      - "traefik.http.middlewares.litellm-redirect.redirectregex.regex=.*"
+      - "traefik.http.middlewares.litellm-redirect.redirectregex.replacement=/ui"
+      - "traefik.http.middlewares.litellm-redirect.redirectregex.permanent=true"
       - "traefik.http.middlewares.litellm-ratelimit.ratelimit.average=100"
       - "traefik.http.middlewares.litellm-ratelimit.ratelimit.burst=50"
       - "traefik.http.middlewares.litellm-ratelimit.ratelimit.period=1m"
@@ -170,8 +197,8 @@ services:
           "wget",
           "--no-verbose",
           "--tries=1",
-          "--spider",
-          "http://localhost:4000/health",
+          "-O-",
+          "http://localhost:4000/",
         ]
       interval: 30s
       timeout: 10s
@@ -185,12 +212,10 @@ services:
         reservations:
           cpus: "0.5"
           memory: 512M
-    command:
-      ["--config", "/app/config.yaml", "--port", "4000", "--num_workers", "4"]
 
   # Open WebUI
   open-webui:
-    image: ghcr.io/open-webui/open-webui:v0.4.5
+    image: ghcr.io/open-webui/open-webui:v0.6.34
     container_name: chatbridge-open-webui
     restart: unless-stopped
     security_opt:
@@ -228,11 +253,9 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.open-webui.rule=Host(`ai.${DOMAIN}`)"
-      - "traefik.http.routers.open-webui.entrypoints=websecure"
-      - "traefik.http.routers.open-webui.tls=true"
-      - "traefik.http.routers.open-webui.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.open-webui.entrypoints=web"
       - "traefik.http.services.open-webui.loadbalancer.server.port=8080"
-      - "traefik.http.routers.open-webui.middlewares=webui-ratelimit,security-headers"
+      - "traefik.http.routers.open-webui.middlewares=webui-ratelimit,security-headers@file"
       - "traefik.http.middlewares.webui-ratelimit.ratelimit.average=200"
       - "traefik.http.middlewares.webui-ratelimit.ratelimit.burst=100"
       - "traefik.http.middlewares.webui-ratelimit.ratelimit.period=1m"
@@ -258,7 +281,7 @@ services:
 
   # Backup Service
   backup:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     container_name: chatbridge-backup
     restart: unless-stopped
     security_opt:

@@ -50,6 +50,11 @@ router_settings:
   redis_port: os.environ/REDIS_PORT
   redis_password: os.environ/REDIS_PASSWORD
   enable_pre_call_checks: true
+  # Fallbacks: map each model to its fallback options
+  fallbacks:
+    - gpt-4o: ["gpt-4o-mini"]
+    - claude-3-5-sonnet: ["claude-3-5-haiku"]
+    - gpt-3.5-turbo: ["gpt-4o-mini"]
 
 # General Settings
 litellm_settings:
@@ -73,11 +78,6 @@ litellm_settings:
   # Content Moderation (disabled - configure separately if needed)
   enable_content_moderation: false
 
-  # Fallbacks (simple list of model names)
-  fallbacks:
-    - gpt-4o-mini
-    - claude-3-5-haiku
-
 # Success/Failure Callbacks (add monitoring services to enable)
 # success_callback: ["langfuse", "prometheus"]
 # failure_callback: ["langfuse", "prometheus"]
@@ -96,20 +96,3 @@ general_settings:
 
   # UI Settings
   ui_access_mode: "admin_only"
-
-# Environment Variables
-environment_variables:
-  OPENAI_API_KEY:
-    type: secret
-  ANTHROPIC_API_KEY:
-    type: secret
-  REDIS_HOST:
-    type: string
-  REDIS_PORT:
-    type: integer
-  REDIS_PASSWORD:
-    type: secret
-  DATABASE_URL:
-    type: secret
-  LITELLM_MASTER_KEY:
-    type: secret

@@ -230,7 +230,7 @@ LITELLM_UI_PASSWORD=${LITELLM_UI_PASSWORD}
 WEBUI_SECRET_KEY=${WEBUI_SECRET_KEY}
 ENABLE_SIGNUP=false
 DEFAULT_USER_ROLE=user
-WEBUI_NAME=AI Assistant Platform
+WEBUI_NAME="AI Assistant Platform"
 
 # Model Configuration
 MODEL_FILTER_LIST=gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
@@ -249,7 +249,7 @@ BACKUP_KEEP_DAYS=7
 
 # Optional configurations (leave empty if not used)
 WEBHOOK_URL=
-SEARCH_PROMPT_TEMPLATE=Generate a concise and focused web search query based on the user's question or conversation context. Return only the search query.
+SEARCH_PROMPT_TEMPLATE="Generate a concise and focused web search query based on the user's question or conversation context. Return only the search query."
 SMTP_HOST=
 SMTP_PORT=587
 SMTP_USER=
@@ -384,31 +384,149 @@ display_credentials() {
 }
 
 # Display post-installation steps
+# Check DNS configuration
+check_dns() {
+  print_info "Checking DNS configuration..."
+  echo ""
+
+  # Check if using Cloudflare Tunnel
+  local using_cloudflare_tunnel=false
+  if [ -f "docker/cloudflared/config.yml" ]; then
+    using_cloudflare_tunnel=true
+    print_info "Cloudflare Tunnel detected - DNS should point to Cloudflare IPs"
+  fi
+
+  local all_configured=true
+  local subdomains=("ai" "admin" "traefik")
+
+  for subdomain in "${subdomains[@]}"; do
+    local fqdn="${subdomain}.${DOMAIN}"
+    print_info "Checking DNS for ${fqdn}..."
+
+    # Try to resolve the domain
+    local resolved_ip=$(dig +short "${fqdn}" @8.8.8.8 2>/dev/null | grep -E '^[0-9.]+$' | head -1)
+
+    if [ -z "$resolved_ip" ]; then
+      print_warning "  ⚠️  ${fqdn} - Not configured"
+      if [ "$using_cloudflare_tunnel" = true ]; then
+        echo "      Action: Configure DNS in Cloudflare Dashboard"
+      else
+        SERVER_IP=$(curl -s4 ifconfig.me 2>/dev/null || curl -s4 icanhazip.com 2>/dev/null || echo "your-server-ip")
+        echo "      Action: Point ${fqdn} to ${SERVER_IP}"
+      fi
+      all_configured=false
+    else
+      # Check if it's a Cloudflare IP (common ranges)
+      if [ "$using_cloudflare_tunnel" = true ]; then
+        # Cloudflare IP ranges: 172.64-71.x.x, 104.16-31.x.x, 108.162.x.x, etc.
+        if [[ "$resolved_ip" =~ ^172\.(6[4-9]|7[0-1])\. ]] || \
+           [[ "$resolved_ip" =~ ^104\.(1[6-9]|2[0-9]|3[0-1])\. ]] || \
+           [[ "$resolved_ip" =~ ^108\.162\. ]] || \
+           [[ "$resolved_ip" =~ ^141\.101\. ]] || \
+           [[ "$resolved_ip" =~ ^162\.158\. ]] || \
+           [[ "$resolved_ip" =~ ^173\.245\. ]] || \
+           [[ "$resolved_ip" =~ ^188\.114\. ]] || \
+           [[ "$resolved_ip" =~ ^190\.93\. ]] || \
+           [[ "$resolved_ip" =~ ^197\.234\. ]] || \
+           [[ "$resolved_ip" =~ ^198\.41\. ]]; then
+          print_success "  ✓  ${fqdn} - Correctly configured (Cloudflare: ${resolved_ip})"
+        else
+          print_warning "  ⚠️  ${fqdn} - Points to ${resolved_ip} (expected Cloudflare IP)"
+          echo "      Action: Update DNS to point to Cloudflare (via Cloudflare Dashboard)"
+          all_configured=false
+        fi
+      else
+        # Direct deployment - check against server IP
+        SERVER_IP=$(curl -s4 ifconfig.me 2>/dev/null || curl -s4 icanhazip.com 2>/dev/null || echo "unknown")
+        if [ "$SERVER_IP" != "unknown" ] && [ "$resolved_ip" != "$SERVER_IP" ]; then
+          print_warning "  ⚠️  ${fqdn} - Points to ${resolved_ip} (expected: ${SERVER_IP})"
+          echo "      Action: Update DNS to point to ${SERVER_IP}"
+          all_configured=false
+        else
+          print_success "  ✓  ${fqdn} - Correctly configured (${resolved_ip})"
+        fi
+      fi
+    fi
+  done
+
+  echo ""
+
+  if [ "$all_configured" = true ]; then
+    print_success "All DNS records are correctly configured!"
+    return 0
+  else
+    print_warning "DNS configuration incomplete"
+    echo ""
+    if [ "$using_cloudflare_tunnel" = true ]; then
+      echo "To configure DNS for Cloudflare Tunnel:"
+      echo "  1. Verify tunnel is running: cloudflared tunnel list"
+      echo "  2. Check DNS routes: cloudflared tunnel route list"
+      echo "  3. If routes are missing, add them:"
+      for subdomain in "${subdomains[@]}"; do
+        echo "     cloudflared tunnel route dns <tunnel-name> ${subdomain}.${DOMAIN}"
+      done
+    else
+      SERVER_IP=$(curl -s4 ifconfig.me 2>/dev/null || curl -s4 icanhazip.com 2>/dev/null || echo "your-server-ip")
+      echo "To configure DNS:"
+      echo "  1. Log in to your domain registrar or DNS provider"
+      echo "  2. Add/Update A records for the following subdomains:"
+      for subdomain in "${subdomains[@]}"; do
+        echo "     - ${subdomain}.${DOMAIN}  →  ${SERVER_IP}"
+      done
+      echo ""
+      echo "  3. Wait for DNS propagation (usually 5-60 minutes, max 48 hours)"
+    fi
+    echo ""
+    echo "  4. Re-run this script to verify DNS configuration"
+    echo ""
+    read -p "Continue anyway? (y/N): " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      print_info "Installation paused. Please configure DNS and run again."
+      exit 0
+    else
+      echo ""
+      print_warning "Continuing with incorrect DNS configuration"
+      echo ""
+      echo "⚠️  IMPORTANT: SSL certificates will NOT work until DNS is configured!"
+      echo ""
+      echo "What happens next:"
+      echo "  - Services will start but won't be accessible via domain names"
+      echo "  - Traefik will fail to obtain SSL certificates from Let's Encrypt"
+      echo "  - You'll see certificate errors in the logs"
+      echo ""
+      echo "After configuring DNS (usually 5-60 minutes):"
+      echo "  1. Verify DNS: dig ai.${DOMAIN} (should show ${SERVER_IP})"
+      echo "  2. Restart Traefik: docker-compose -f docker/docker-compose.yml restart traefik"
+      echo "  3. Check logs: docker-compose -f docker/docker-compose.yml logs -f traefik"
+      echo "  4. Wait for 'Certificate obtained' message"
+      echo ""
+      read -p "Press Enter to continue with installation..."
+      echo ""
+    fi
+    return 1
+  fi
+}
+
 display_post_install() {
   print_info "Post-Installation Steps:"
   echo ""
-  echo "1. DNS Configuration:"
-  echo "   - Point ai.${DOMAIN} to this server's IP"
-  echo "   - Point admin.${DOMAIN} to this server's IP"
-  echo "   - Point traefik.${DOMAIN} to this server's IP"
-  echo "   - Wait for DNS propagation (may take up to 48 hours)"
-  echo ""
-  echo "2. SSL Certificates:"
+  echo "1. SSL Certificates:"
   echo "   - Let's Encrypt will automatically provision certificates"
-  echo "   - Check Traefik logs: docker-compose logs traefik"
+  echo "   - Check Traefik logs: docker-compose -f docker/docker-compose.yml logs traefik"
   echo ""
-  echo "3. Create Admin Account:"
+  echo "2. Create Admin Account:"
   echo "   - Visit https://ai.${DOMAIN}"
   echo "   - Create your admin account (first user becomes admin)"
   echo ""
-  echo "4. Useful Commands:"
+  echo "3. Useful Commands:"
   echo "   - View logs: docker-compose -f docker/docker-compose.yml logs -f [service-name]"
   echo "   - Restart services: docker-compose -f docker/docker-compose.yml restart"
   echo "   - Stop services: docker-compose -f docker/docker-compose.yml down"
   echo "   - Update services: docker-compose -f docker/docker-compose.yml pull && docker-compose -f docker/docker-compose.yml up -d"
   echo "   - Backup manually: docker-compose -f docker/docker-compose.yml exec backup /backup-script.sh"
   echo ""
-  echo "5. Security Recommendations:"
+  echo "4. Security Recommendations:"
   echo "   - Enable firewall: sudo ufw enable"
   echo "   - Allow only ports 80, 443, and 22: sudo ufw allow 80,443,22/tcp"
   echo "   - Set up fail2ban for SSH protection"
@@ -416,7 +534,7 @@ display_post_install() {
   echo "   - Monitor logs regularly"
   echo "   - Review backups in ./backups/ directory"
   echo ""
-  echo "6. Monitoring:"
+  echo "5. Monitoring:"
   echo "   - Check service status: docker-compose ps"
   echo "   - View resource usage: docker stats"
   echo "   - Check disk space: df -h"
@@ -452,7 +570,7 @@ load_existing_config() {
 
 # Backup existing installation
 backup_existing() {
-  if [ -f ".env" ] || [ -f "docker/docker-compose.yml" ]; then
+  if [ -f ".env" ]; then
     print_warning "Existing installation detected"
     echo ""
     echo "Choose an option:"
@@ -544,6 +662,11 @@ main() {
 
     # Initialize Docker
     init_docker
+
+    # Check DNS configuration (only if using a real domain, not localhost)
+    if [[ ! "$DOMAIN" =~ ^(localhost|127\.0\.0\.1|.*\.local)$ ]]; then
+      check_dns || true  # Don't exit script if DNS check fails
+    fi
 
     # Pull images
     pull_images

@@ -6,21 +6,13 @@ api:
   dashboard: true
   insecure: false
 
+ping:
+  entryPoint: "web"
+
 entryPoints:
   web:
     address: ":80"
     http:
-      redirections:
-        entryPoint:
-          to: websecure
-          scheme: https
-          permanent: true
-
-  websecure:
-    address: ":443"
-    http:
-      tls:
-        certResolver: letsencrypt
       middlewares:
         - security-headers@file
 
@@ -33,16 +25,8 @@ providers:
     directory: /dynamic
     watch: true
 
-certificatesResolvers:
-  letsencrypt:
-    acme:
-      email: admin@your-domain.com
-      storage: /acme/acme.json
-      httpChallenge:
-        entryPoint: web
-
 log:
-  level: INFO
+  level: DEBUG
   format: json
   filePath: /var/log/traefik/traefik.log
 
@@ -52,9 +36,9 @@ accessLog:
   bufferingSize: 100
   filters:
     statusCodes:
-      - "400-599"
+      - "200-599"  # Log all responses for debugging
     retryAttempts: true
-    minDuration: "10ms"
+    minDuration: "1ms"  # Lower threshold for debugging
 
 # Rate limiting
 http:

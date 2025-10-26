@@ -1,0 +1,25 @@
+tunnel: 7f025965-a6ed-4e28-83df-83a0933818b0
+credentials-file: /etc/cloudflared/credentials.json
+
+# Route all traffic to Traefik
+ingress:
+  # Route ai.avaluate.ai to Open WebUI via Traefik
+  - hostname: ai.avaluate.ai
+    service: http://traefik:80
+    originRequest:
+      noTLSVerify: true
+
+  # Route admin.avaluate.ai to LiteLLM via Traefik
+  - hostname: admin.avaluate.ai
+    service: http://traefik:80
+    originRequest:
+      noTLSVerify: true
+
+  # Route traefik.avaluate.ai to Traefik dashboard
+  - hostname: traefik.avaluate.ai
+    service: http://traefik:80
+    originRequest:
+      noTLSVerify: true
+
+  # Catch-all rule (required)
+  - service: http_status:404

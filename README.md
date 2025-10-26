@@ -2,6 +2,8 @@
 
 **Bridge Multiple LLM Providers with a Unified Chat Interface**
 
+![ChatBridge UI](docs/ui.png)
+
 A complete, turnkey solution combining LiteLLM's intelligent routing with Open WebUI's beautiful interface - secure, production-ready, designed for small businesses.
 
 ## Features
