@@ -37,7 +37,7 @@ echo -e "${BLUE}Version: $VERSION${NC}\n"
 
 # Function to print messages
 print_info() {
-  echo -e "${BLUE}[INFO]${NC} $1"
+  echo -e "${BLUE}[INFO]${NC} \n$1"
 }
 
 print_success() {
@@ -431,7 +431,7 @@ backup_existing() {
     read -p "Backup existing configuration? (Y/n): " -n 1 -r
     echo
     if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-      backup_dir="backup_$(date +%Y%m%d_%H%M%S)"
+      backup_dir="backups/config_backup_$(date +%Y%m%d_%H%M%S)"
       mkdir -p "$backup_dir"
       cp -r .env docker "$backup_dir/" 2>/dev/null || true
       print_success "Backup created in $backup_dir"
