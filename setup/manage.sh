@@ -59,27 +59,27 @@ print_menu() {
 
 start_services() {
   echo -e "${BLUE}Starting all services...${NC}"
-  docker-compose -f docker/docker-compose.yml up -d
+  docker-compose -f docker/docker-compose.yml --env-file .env up -d
   echo -e "${GREEN}✓ Services started${NC}"
-  docker-compose -f docker/docker-compose.yml ps
+  docker-compose -f docker/docker-compose.yml --env-file .env ps
 }
 
 stop_services() {
   echo -e "${BLUE}Stopping all services...${NC}"
-  docker-compose -f docker/docker-compose.yml down
+  docker-compose -f docker/docker-compose.yml --env-file .env down
   echo -e "${GREEN}✓ Services stopped${NC}"
 }
 
 restart_services() {
   echo -e "${BLUE}Restarting all services...${NC}"
-  docker-compose -f docker/docker-compose.yml restart
+  docker-compose -f docker/docker-compose.yml --env-file .env restart
   echo -e "${GREEN}✓ Services restarted${NC}"
-  docker-compose -f docker/docker-compose.yml ps
+  docker-compose -f docker/docker-compose.yml --env-file .env ps
 }
 
 show_status() {
   echo -e "${BLUE}Service Status:${NC}"
-  docker-compose -f docker/docker-compose.yml ps
+  docker-compose -f docker/docker-compose.yml --env-file .env ps
   echo ""
   echo -e "${BLUE}Resource Usage:${NC}"
   docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
@@ -98,12 +98,12 @@ view_logs() {
   choice=${choice:-1}
 
   case $choice in
-  1) docker-compose -f docker/docker-compose.yml logs -f ;;
-  2) docker-compose -f docker/docker-compose.yml logs -f open-webui ;;
-  3) docker-compose -f docker/docker-compose.yml logs -f litellm ;;
-  4) docker-compose -f docker/docker-compose.yml logs -f traefik ;;
-  5) docker-compose -f docker/docker-compose.yml logs -f postgres ;;
-  6) docker-compose -f docker/docker-compose.yml logs -f redis ;;
+  1) docker-compose -f docker/docker-compose.yml --env-file .env logs -f ;;
+  2) docker-compose -f docker/docker-compose.yml --env-file .env logs -f open-webui ;;
+  3) docker-compose -f docker/docker-compose.yml --env-file .env logs -f litellm ;;
+  4) docker-compose -f docker/docker-compose.yml --env-file .env logs -f traefik ;;
+  5) docker-compose -f docker/docker-compose.yml --env-file .env logs -f postgres ;;
+  6) docker-compose -f docker/docker-compose.yml --env-file .env logs -f redis ;;
   *) echo "Invalid choice" ;;
   esac
 }
@@ -118,7 +118,7 @@ run_health_check() {
 
 create_backup() {
   echo -e "${BLUE}Creating manual backup...${NC}"
-  docker-compose -f docker/docker-compose.yml exec backup /backup-script.sh
+  docker-compose -f docker/docker-compose.yml --env-file .env exec backup /backup-script.sh
   echo -e "${GREEN}✓ Backup completed${NC}"
   echo ""
   echo "Recent backups:"
@@ -172,13 +172,13 @@ restore_backup() {
   echo -e "${BLUE}Restoring $db_name from $backup_file...${NC}"
 
   # Stop services using the database
-  docker-compose -f docker/docker-compose.yml stop litellm open-webui
+  docker-compose -f docker/docker-compose.yml --env-file .env stop litellm open-webui
 
   # Restore database
-  gunzip <"$backup_file" | docker-compose -f docker/docker-compose.yml exec -T postgres psql -U postgres -d "$db_name"
+  gunzip <"$backup_file" | docker-compose -f docker/docker-compose.yml --env-file .env exec -T postgres psql -U postgres -d "$db_name"
 
   # Restart services
-  docker-compose -f docker/docker-compose.yml start litellm open-webui
+  docker-compose -f docker/docker-compose.yml --env-file .env start litellm open-webui
 
   echo -e "${GREEN}✓ Restore completed${NC}"
 }
@@ -192,15 +192,15 @@ update_services() {
 
   echo ""
   echo "2. Pulling latest images..."
-  docker-compose -f docker/docker-compose.yml pull
+  docker-compose -f docker/docker-compose.yml --env-file .env pull
 
   echo ""
   echo "3. Restarting services with new images..."
-  docker-compose -f docker/docker-compose.yml up -d
+  docker-compose -f docker/docker-compose.yml --env-file .env up -d
 
   echo ""
   echo -e "${GREEN}✓ Update completed${NC}"
-  docker-compose -f docker/docker-compose.yml ps
+  docker-compose -f docker/docker-compose.yml --env-file .env ps
 }
 
 reset_password() {
@@ -217,7 +217,7 @@ reset_password() {
     else
       sed -i '' "s/LITELLM_UI_PASSWORD=.*/LITELLM_UI_PASSWORD=${new_password}/" .env
     fi
-    docker-compose -f docker/docker-compose.yml restart litellm
+    docker-compose -f docker/docker-compose.yml --env-file .env restart litellm
     echo -e "${GREEN}✓ LiteLLM UI password reset${NC}"
     echo "  New password: $new_password"
   fi
@@ -232,7 +232,7 @@ reset_password() {
     else
       sed -i '' "s|TRAEFIK_BASIC_AUTH=.*|TRAEFIK_BASIC_AUTH=${traefik_hash}|" .env
     fi
-    docker-compose -f docker/docker-compose.yml restart traefik
+    docker-compose -f docker/docker-compose.yml --env-file .env restart traefik
     echo -e "${GREEN}✓ Traefik password reset${NC}"
     echo "  New password: $traefik_pass"
   fi
@@ -268,19 +268,19 @@ force_ssl_renewal() {
   echo -e "${BLUE}Forcing SSL certificate renewal...${NC}"
 
   # Remove old certificates
-  docker-compose -f docker/docker-compose.yml stop traefik
+  docker-compose -f docker/docker-compose.yml --env-file .env stop traefik
   rm -f docker/traefik/acme/acme.json
-  docker-compose -f docker/docker-compose.yml start traefik
+  docker-compose -f docker/docker-compose.yml --env-file .env start traefik
 
   echo ""
   echo "Waiting for certificate provisioning..."
   sleep 10
 
-  docker-compose -f docker/docker-compose.yml logs traefik | tail -n 20
+  docker-compose -f docker/docker-compose.yml --env-file .env logs traefik | tail -n 20
 
   echo ""
   echo -e "${GREEN}✓ Certificate renewal initiated${NC}"
-  echo "Check Traefik logs for status: docker-compose -f docker/docker-compose.yml logs -f traefik"
+  echo "Check Traefik logs for status: docker-compose -f docker/docker-compose.yml --env-file .env logs -f traefik"
 }
 
 export_configuration() {

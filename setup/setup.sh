@@ -310,7 +310,7 @@ init_docker() {
 pull_images() {
   print_info "Pulling Docker images (this may take several minutes)..."
 
-  docker-compose -f docker/docker-compose.yml pull
+  docker-compose -f docker/docker-compose.yml --env-file .env pull
 
   print_success "Docker images pulled successfully"
 }
@@ -319,7 +319,7 @@ pull_images() {
 start_services() {
   print_info "Starting services..."
 
-  docker-compose -f docker/docker-compose.yml up -d
+  docker-compose -f docker/docker-compose.yml --env-file .env up -d
 
   print_success "Services started"
 }
@@ -332,7 +332,7 @@ wait_for_services() {
   local attempt=0
 
   while [ $attempt -lt $max_attempts ]; do
-    if docker-compose -f docker/docker-compose.yml ps | grep -q "unhealthy"; then
+    if docker-compose -f docker/docker-compose.yml --env-file .env ps | grep -q "unhealthy"; then
       attempt=$((attempt + 1))
       echo -n "."
       sleep 5
@@ -344,7 +344,7 @@ wait_for_services() {
   done
 
   echo ""
-  print_warning "Some services may still be starting. Check with: docker-compose -f docker/docker-compose.yml ps"
+  print_warning "Some services may still be starting. Check with: docker-compose -f docker/docker-compose.yml --env-file .env ps"
 }
 
 # Display credentials
