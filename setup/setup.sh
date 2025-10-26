@@ -425,18 +425,74 @@ display_post_install() {
   echo ""
 }
 
+# Load existing configuration
+load_existing_config() {
+  if [ -f ".env" ]; then
+    print_info "Loading existing configuration..."
+
+    # Source the .env file to load variables
+    set -a
+    source .env 2>/dev/null || true
+    set +a
+
+    # Extract values we need
+    DOMAIN=${DOMAIN:-}
+    EMAIL=$(grep -E "^# Email.*Let's Encrypt" .env 2>/dev/null | head -1 || echo "")
+    OPENAI_KEY=${OPENAI_API_KEY:-}
+    ANTHROPIC_KEY=${ANTHROPIC_API_KEY:-}
+    AZURE_KEY=${AZURE_API_KEY:-}
+
+    print_success "Existing configuration loaded"
+    return 0
+  else
+    return 1
+  fi
+}
+
 # Backup existing installation
 backup_existing() {
   if [ -f ".env" ] || [ -f "docker/docker-compose.yml" ]; then
     print_warning "Existing installation detected"
-    read -p "Backup existing configuration? (Y/n): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-      backup_dir="backups/config_backup_$(date +%Y%m%d_%H%M%S)"
-      mkdir -p "$backup_dir"
-      cp -r .env docker "$backup_dir/" 2>/dev/null || true
-      print_success "Backup created in $backup_dir"
+    echo ""
+    echo "Choose an option:"
+    echo "  1) Continue with previous installation (use existing settings)"
+    echo "  2) Start fresh (re-enter all configuration)"
+    echo ""
+    read -p "Choice [1]: " choice
+    choice=${choice:-1}
+    echo ""
+
+    if [ "$choice" = "1" ]; then
+      print_info "Continuing with existing installation..."
+      USE_EXISTING_CONFIG=true
+
+      # Load existing configuration
+      if load_existing_config; then
+        print_success "Using existing configuration"
+        echo "  Domain: ${DOMAIN}"
+        echo "  OpenAI API: ${OPENAI_KEY:+Configured}"
+        echo "  Anthropic API: ${ANTHROPIC_KEY:+Configured}"
+        echo ""
+      else
+        print_error "Failed to load existing configuration. Please start fresh."
+        exit 1
+      fi
+    else
+      print_info "Starting fresh installation..."
+      USE_EXISTING_CONFIG=false
+
+      # Ask about backup
+      read -p "Backup existing configuration? (Y/n): " -n 1 -r
+      echo
+      if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        backup_dir="backups/config_backup_$(date +%Y%m%d_%H%M%S)"
+        mkdir -p "$backup_dir"
+        cp -r .env docker "$backup_dir/" 2>/dev/null || true
+        print_success "Backup created in $backup_dir"
+      fi
     fi
+  else
+    USE_EXISTING_CONFIG=false
   fi
 }
 
@@ -454,18 +510,20 @@ main() {
   # Backup existing installation
   backup_existing
 
-  # Get configuration from user
-  get_domain
-  get_email
-  get_api_keys
+  # Get configuration from user (skip if using existing)
+  if [ "$USE_EXISTING_CONFIG" != "true" ]; then
+    get_domain
+    get_email
+    get_api_keys
 
-  echo ""
-  print_info "Configuration summary:"
-  echo "  Domain: ${DOMAIN}"
-  echo "  Email: ${EMAIL}"
-  echo "  OpenAI: ${OPENAI_KEY:+Configured}"
-  echo "  Anthropic: ${ANTHROPIC_KEY:+Configured}"
-  echo ""
+    echo ""
+    print_info "Configuration summary:"
+    echo "  Domain: ${DOMAIN}"
+    echo "  Email: ${EMAIL}"
+    echo "  OpenAI: ${OPENAI_KEY:+Configured}"
+    echo "  Anthropic: ${ANTHROPIC_KEY:+Configured}"
+    echo ""
+  fi
 
   read -p "Proceed with installation? (Y/n): " -n 1 -r
   echo
@@ -473,12 +531,15 @@ main() {
     # Create directory structure
     create_directories
 
-    # Generate environment file
-    generate_env_file
-
-    # Update configurations
-    update_traefik_config
-    update_litellm_config
+    # Generate environment file (skip if using existing)
+    if [ "$USE_EXISTING_CONFIG" != "true" ]; then
+      generate_env_file
+      # Update configurations
+      update_traefik_config
+      update_litellm_config
+    else
+      print_info "Using existing .env and configuration files"
+    fi
 
     # Initialize Docker
     init_docker
