@@ -88,17 +88,14 @@ litellm_settings:
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
   database_url: os.environ/DATABASE_URL
-  
-  # Security
-  allowed_ips: []  # Empty list allows all IPs, add specific IPs to restrict
-  
+
   # Budgets and Rate Limits
   max_budget: 100.0
   budget_duration: "1d"
-  
+
   # Logging
   store_model_in_db: true
-  
+
   # UI Settings
   ui_access_mode: "admin_only"
 

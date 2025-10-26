@@ -142,9 +142,11 @@ services:
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - PORT=4000
+      - LITELLM_MIGRATION_DIR=/app/migrations
     volumes:
       - ../docker/litellm/config.yaml:/app/config.yaml:ro
       - litellm_tmp:/tmp
+      - litellm_migrations:/app/migrations
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.litellm.rule=Host(`admin.${DOMAIN}`)"
@@ -303,4 +305,6 @@ volumes:
   open-webui_data:
     driver: local
   litellm_tmp:
+    driver: local
+  litellm_migrations:
     driver: local
