@@ -1,0 +1,85 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Traefik
+traefik/acme/
+traefik/acme.json
+
+# Logs
+logs/
+*.log
+
+# Backups
+backups/
+*.sql
+*.sql.gz
+*.dump
+
+# Database data
+postgres_data/
+redis_data/
+open-webui_data/
+
+# Docker volumes
+volumes/
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Certificates
+*.pem
+*.key
+*.crt
+*.csr
+
+# Backup files
+*.bak
+*.backup
+backup_*/
+
+# Export/archive files
+export_*/
+*.tar.gz
+chatbridge-*.tar.gz
+
+# Test files
+test/
+tests/
+*.test

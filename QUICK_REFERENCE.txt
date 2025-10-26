@@ -1,0 +1,177 @@
+╔══════════════════════════════════════════════════════════════════╗
+║                     CHATBRIDGE QUICK REFERENCE                   ║
+║              Bridge Multiple LLMs - Common Commands              ║
+╚══════════════════════════════════════════════════════════════════╝
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🚀 INSTALLATION
+────────────────────────────────────────────────────────────────
+./setup.sh                              # One-command installation
+
+
+🔧 SERVICE MANAGEMENT
+────────────────────────────────────────────────────────────────
+docker-compose up -d                    # Start all services
+docker-compose down                     # Stop all services
+docker-compose restart                  # Restart all services
+docker-compose restart [service]        # Restart specific service
+docker-compose ps                       # View service status
+docker-compose pull                     # Pull latest images
+docker-compose up -d                    # Apply updates
+
+
+📊 MONITORING
+────────────────────────────────────────────────────────────────
+./health-check.sh                       # Run health check
+docker-compose logs -f                  # View all logs (live)
+docker-compose logs [service]           # View specific service logs
+docker stats                            # Resource usage
+df -h                                   # Disk space
+
+
+🛠️ CHATBRIDGE MANAGEMENT TOOL
+────────────────────────────────────────────────────────────────
+./manage.sh                             # Interactive menu
+
+Options:
+  1) start           - Start all services
+  2) stop            - Stop all services  
+  3) restart         - Restart all services
+  4) status          - Show service status
+  5) logs            - View logs
+  6) health          - Run health check
+  7) backup          - Create backup
+  8) restore         - Restore from backup
+  9) update          - Update services
+ 10) reset-password  - Reset passwords
+
+
+💾 BACKUP & RESTORE
+────────────────────────────────────────────────────────────────
+# Automatic backups run daily at midnight
+
+./manage.sh                             # Select option 7 for manual
+docker-compose exec backup /backup-script.sh   # Direct manual backup
+ls -lh backups/                         # View backups
+
+# Restore
+./manage.sh                             # Select option 8
+
+
+🔐 CONFIGURATION
+────────────────────────────────────────────────────────────────
+nano .env                               # Edit environment variables
+nano litellm/config.yaml                # Edit LiteLLM models
+docker-compose restart [service]        # Apply changes
+
+
+🌉 ACCESS URLS
+────────────────────────────────────────────────────────────────
+https://your-domain.com                 # ChatBridge UI
+https://litellm.your-domain.com         # LiteLLM API
+https://traefik.your-domain.com         # Traefik Dashboard
+
+
+🔍 TROUBLESHOOTING
+────────────────────────────────────────────────────────────────
+docker-compose logs [service]           # Check service logs
+docker-compose ps                       # Check service status
+./health-check.sh                       # Run diagnostics
+docker system df                        # Check Docker disk usage
+docker system prune -f                  # Clean up Docker
+
+# Check specific services
+docker-compose logs traefik             # SSL/routing issues
+docker-compose logs postgres            # Database issues
+docker-compose logs litellm             # API issues
+docker-compose logs open-webui          # UI issues
+
+
+🔒 SECURITY
+────────────────────────────────────────────────────────────────
+chmod 600 .env                          # Secure env file
+sudo ufw enable                         # Enable firewall
+sudo ufw allow 80,443,22/tcp            # Open required ports
+./manage.sh                             # Option 10: Reset passwords
+
+
+📝 COMMON TASKS
+────────────────────────────────────────────────────────────────
+# Add new API key
+nano .env                               # Add: PROVIDER_API_KEY=...
+docker-compose restart litellm          # Apply changes
+
+# Disable user signup
+nano .env                               # Set: ENABLE_SIGNUP=false
+docker-compose restart open-webui       # Apply changes
+
+# Add new model
+nano litellm/config.yaml                # Add model configuration
+docker-compose restart litellm          # Apply changes
+
+# View database
+docker-compose exec postgres psql -U postgres
+
+# Update everything
+docker-compose pull && docker-compose up -d
+
+
+🚨 EMERGENCY COMMANDS
+────────────────────────────────────────────────────────────────
+docker-compose down                     # Stop everything
+docker-compose up -d --force-recreate   # Force recreate containers
+docker system prune -af                 # Clean everything (DANGER!)
+
+
+🔄 SCALING
+────────────────────────────────────────────────────────────────
+docker-compose up -d --scale litellm=3  # Run 3 LiteLLM instances
+
+
+🗂️ FILE LOCATIONS
+────────────────────────────────────────────────────────────────
+/opt/chatbridge/                        # Installation directory
+├── docker-compose.yml                  # Main config
+├── .env                                # Secrets (600 permissions)
+├── backups/                            # Database backups
+├── logs/                               # Application logs
+├── traefik/acme/                       # SSL certificates
+└── litellm/config.yaml                 # Model configuration
+
+
+📞 HEALTH ENDPOINTS
+────────────────────────────────────────────────────────────────
+https://your-domain.com/health          # Open WebUI
+https://litellm.your-domain.com/health  # LiteLLM
+
+
+📚 DOCUMENTATION
+────────────────────────────────────────────────────────────────
+README.md                               # Full documentation
+QUICKSTART.md                           # Quick start guide
+FILE_STRUCTURE.md                       # File reference
+INSTALLATION_INSTRUCTIONS.txt           # Setup instructions
+
+
+💡 PRO TIPS
+────────────────────────────────────────────────────────────────
+1. Run health checks weekly: ./health-check.sh
+2. Monitor disk space: df -h
+3. Update monthly: docker-compose pull && docker-compose up -d
+4. Test backups regularly
+5. Keep .env file secure (chmod 600)
+6. Use ./manage.sh for common tasks
+7. Monitor logs for errors
+8. Set up alerts for downtime
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🌉 CHATBRIDGE - BRIDGE YOUR WAY TO AI
+
+Print this card and keep it handy! 📄
+
+For detailed help, see README.md or run: ./manage.sh
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
