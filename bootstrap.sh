@@ -1,6 +1,7 @@
 #!/bin/bash
 # ChatBridge Bootstrap Installer
 # Downloads and extracts the latest release, then runs the installer
+# Version: 1.0.1
 
 set -e
 
