@@ -1,5 +1,17 @@
 # Models are managed via the UI and stored in the database
 # This config file contains only infrastructure settings
+#
+# To add Ollama models via the UI (https://admin.your-domain.com/ui):
+# 1. Pull models in Ollama: docker exec chatbridge-ollama ollama pull llama2
+# 2. Add model in LiteLLM UI with:
+#    - Model Name: llama2 (or any name)
+#    - LiteLLM Params:
+#        model: ollama/llama2
+#        api_base: http://ollama:11434
+#
+# Popular Ollama models to try:
+# - ollama/llama2, ollama/llama3, ollama/mistral, ollama/codellama
+# - ollama/phi, ollama/gemma, ollama/qwen
 
 # Router Settings
 router_settings:

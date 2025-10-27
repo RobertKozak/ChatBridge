@@ -55,6 +55,16 @@ ChatBridge supports three flexible deployment modes:
 - ✅ Backup retention policy (7 days default)
 - ✅ Health check endpoints
 
+### LLM Support
+- ✅ **Cloud Providers**: OpenAI, Anthropic, Azure, Cohere, and more
+- ✅ **Local Models via Ollama**: Run LLMs locally without API keys
+  - Support for Llama 2/3, Mistral, CodeLlama, Phi, Gemma, and more
+  - Optional GPU acceleration for faster inference
+  - No external API costs
+- ✅ **Unified Interface**: Access all models through a single API
+- ✅ **Intelligent Routing**: Automatic failover and load balancing
+- ✅ **Cost Optimization**: Redis caching and usage tracking
+
 ## Architecture
 
 ```
@@ -69,6 +79,7 @@ Traefik (Reverse Proxy + SSL)
     └─→ LiteLLM (Port 4000) - admin.your-domain.com
         ├─→ PostgreSQL (litellm DB)
         ├─→ Redis (caching)
+        ├─→ Ollama (local LLMs)
         └─→ External LLM APIs
 ```
 
@@ -207,7 +218,7 @@ Point these domains to your server's IP:
 ### API Usage
 
 ```bash
-# Using LiteLLM API
+# Using LiteLLM API with cloud models
 curl https://admin.your-domain.com/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_LITELLM_MASTER_KEY" \
@@ -215,7 +226,76 @@ curl https://admin.your-domain.com/v1/chat/completions \
     "model": "gpt-3.5-turbo",
     "messages": [{"role": "user", "content": "Hello!"}]
   }'
+
+# Using Ollama models (local)
+curl https://admin.your-domain.com/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_LITELLM_MASTER_KEY" \
+  -d '{
+    "model": "llama2",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
 ```
+
+### Using Ollama (Local LLMs)
+
+Ollama allows you to run large language models locally without API keys:
+
+**Pull a model:**
+```bash
+# Using manage.sh (interactive)
+./manage.sh
+# Select option 12 (ollama-pull)
+
+# Or directly via docker
+docker exec chatbridge-ollama ollama pull llama2
+docker exec chatbridge-ollama ollama pull mistral
+docker exec chatbridge-ollama ollama pull codellama
+```
+
+**List installed models:**
+```bash
+docker exec chatbridge-ollama ollama list
+```
+
+**Add Ollama model to LiteLLM UI:**
+1. Visit https://admin.your-domain.com/ui
+2. Go to "Models" section
+3. Click "Add New Model"
+4. Configure:
+   - Model Name: `llama2` (or your preferred name)
+   - LiteLLM Params:
+     ```yaml
+     model: ollama/llama2
+     api_base: http://ollama:11434
+     ```
+5. Save and test!
+
+**GPU Support (Optional):**
+
+For NVIDIA GPU acceleration, edit `docker/docker-compose.yml` and uncomment the GPU section in the Ollama service:
+
+```yaml
+deploy:
+  resources:
+    reservations:
+      devices:
+        - driver: nvidia
+          count: 1
+          capabilities: [gpu]
+```
+
+Then restart: `docker-compose restart ollama`
+
+**Popular Ollama Models:**
+- `llama2` - Meta's Llama 2 (7B, 13B, 70B)
+- `llama3` - Meta's Llama 3 (8B, 70B)
+- `mistral` - Mistral 7B
+- `mixtral` - Mixtral 8x7B
+- `codellama` - Code-specialized Llama
+- `phi` - Microsoft's Phi models
+- `gemma` - Google's Gemma
+- `qwen` - Alibaba's Qwen
 
 ### Creating Admin User
 

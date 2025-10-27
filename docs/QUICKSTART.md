@@ -194,6 +194,41 @@ ENABLE_SIGNUP=false
 docker-compose restart open-webui
 ```
 
+### Set Up Ollama (Optional - Local LLMs)
+
+If you enabled Ollama during setup, pull some models to get started:
+
+```bash
+# Using the management tool (recommended)
+./manage.sh
+# Select option 12 to pull models
+
+# Or use docker directly
+docker exec chatbridge-ollama ollama pull llama2
+docker exec chatbridge-ollama ollama pull mistral
+```
+
+**Add Ollama models to LiteLLM:**
+
+1. Visit https://admin.your-domain.com/ui
+2. Navigate to "Models"
+3. Click "Add New Model"
+4. Configure:
+   - Model Name: `llama2`
+   - LiteLLM Params:
+     ```yaml
+     model: ollama/llama2
+     api_base: http://ollama:11434
+     ```
+5. Test the model!
+
+**Benefits of Ollama:**
+- ✅ No API costs - run models locally
+- ✅ Privacy - your data stays on your server
+- ✅ No rate limits
+- ⚠️ Requires more RAM/CPU (8GB+ recommended)
+- ⚠️ Slower without GPU acceleration
+
 ---
 
 ## Daily Management

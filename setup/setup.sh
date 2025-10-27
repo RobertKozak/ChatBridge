@@ -300,6 +300,42 @@ get_api_keys() {
   fi
 }
 
+# Configure Ollama
+configure_ollama() {
+  print_info "Ollama Configuration (Local LLM Runtime)"
+  echo ""
+  echo "Ollama allows you to run LLMs locally without API keys."
+  echo "Popular models: llama2, llama3, mistral, codellama, phi, gemma"
+  echo ""
+
+  read -p "Would you like to enable Ollama? (Y/n): " -n 1 -r
+  echo
+  ENABLE_OLLAMA=${REPLY:-Y}
+
+  if [[ $ENABLE_OLLAMA =~ ^[Yy]$ ]]; then
+    echo ""
+    echo "Which models would you like to pull initially? (comma-separated)"
+    echo "Examples: llama2, mistral, codellama"
+    echo "Note: Models will be downloaded on first start (can be large!)"
+    echo ""
+    read -p "Ollama models [llama2,mistral]: " OLLAMA_MODELS_INPUT
+    OLLAMA_MODELS=${OLLAMA_MODELS_INPUT:-llama2,mistral}
+
+    echo ""
+    read -p "Do you have an NVIDIA GPU for acceleration? (y/N): " -n 1 -r
+    echo
+    ENABLE_GPU=${REPLY:-N}
+
+    print_success "Ollama will be enabled with models: ${OLLAMA_MODELS}"
+    if [[ $ENABLE_GPU =~ ^[Yy]$ ]]; then
+      print_info "Remember to uncomment the GPU section in docker-compose.yml"
+    fi
+  else
+    OLLAMA_MODELS=""
+    print_info "Ollama disabled. You can enable it later by modifying docker-compose.yml"
+  fi
+}
+
 # Create directory structure
 create_directories() {
   print_info "Creating directory structure..."
@@ -372,6 +408,9 @@ WEBUI_NAME="AI Assistant Platform"
 MODEL_FILTER_LIST=gpt-4,gpt-3.5-turbo,claude-3-opus,claude-3-sonnet
 TASK_MODEL=gpt-3.5-turbo
 TITLE_MODEL=gpt-3.5-turbo
+
+# Ollama Configuration
+OLLAMA_MODELS=${OLLAMA_MODELS}
 
 # API Keys
 OPENAI_API_KEY=${OPENAI_KEY}
@@ -851,6 +890,7 @@ main() {
     esac
 
     get_api_keys
+    configure_ollama
 
     echo ""
     print_info "Configuration summary:"

@@ -33,9 +33,16 @@ This guide covers all three deployment options:
 
 ### VPS Requirements
 - **OS**: Ubuntu 22.04 LTS (recommended) or 20.04+
-- **RAM**: 4GB minimum, 8GB recommended
-- **Storage**: 20GB minimum, 40GB recommended
-- **CPU**: 2 cores minimum
+- **RAM**:
+  - 4GB minimum (cloud LLMs only)
+  - 8GB recommended (with Ollama)
+  - 16GB+ for large Ollama models
+- **Storage**:
+  - 20GB minimum (cloud LLMs only)
+  - 40GB+ recommended (with Ollama models)
+  - Each Ollama model: 4-40GB depending on size
+- **CPU**: 2 cores minimum, 4+ cores for Ollama
+- **GPU**: Optional NVIDIA GPU for Ollama acceleration
 - **Network**: Varies by deployment type (see below)
 
 ---
@@ -501,6 +508,67 @@ Add/remove models via the LiteLLM Admin UI:
 4. All changes are stored in the database and persist across restarts
 
 > **Note**: Models are now managed via the database, not config files. The config file only contains infrastructure settings.
+
+### 5. Set Up Ollama Models (Optional)
+
+If you want to run local models without API costs:
+
+**Pull Ollama models:**
+```bash
+# Via manage script
+cd /opt/chatbridge
+./manage.sh
+# Select option 12 (ollama-pull)
+
+# Or directly
+docker exec chatbridge-ollama ollama pull llama2
+docker exec chatbridge-ollama ollama pull mistral
+docker exec chatbridge-ollama ollama pull codellama
+```
+
+**Add to LiteLLM UI:**
+1. Visit https://admin.DOMAIN/ui
+2. Go to "Models" → "Add New Model"
+3. Configure:
+   - Model Name: `llama2`
+   - LiteLLM Params:
+     ```yaml
+     model: ollama/llama2
+     api_base: http://ollama:11434
+     ```
+4. Test in Open WebUI!
+
+**Enable GPU (if available):**
+```bash
+# Edit docker-compose.yml
+vim /opt/chatbridge/docker/docker-compose.yml
+
+# Find the Ollama service and uncomment the GPU section:
+# deploy:
+#   resources:
+#     reservations:
+#       devices:
+#         - driver: nvidia
+#           count: 1
+#           capabilities: [gpu]
+
+# Restart Ollama
+docker compose restart ollama
+```
+
+**Popular Models:**
+- `llama2` (7B) - ~4GB RAM, good general purpose
+- `mistral` (7B) - ~4GB RAM, excellent quality
+- `codellama` (7B) - ~4GB RAM, code specialized
+- `llama3` (8B) - ~5GB RAM, latest Meta model
+- `mixtral` (8x7B) - ~26GB RAM, very high quality
+
+**Benefits:**
+- ✅ No API costs
+- ✅ Complete data privacy
+- ✅ No rate limits
+- ⚠️ Requires more RAM/storage
+- ⚠️ Slower without GPU
 
 ---
 

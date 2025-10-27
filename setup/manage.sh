@@ -48,10 +48,13 @@ print_menu() {
   echo "  9) update          - Update all services"
   echo " 10) reset-password  - Reset admin password"
   echo " 11) add-user        - Add new user to Open WebUI"
-  echo " 12) cleanup         - Clean up old logs and backups"
-  echo " 13) ssl-renew       - Force SSL certificate renewal"
-  echo " 14) export-config   - Export configuration"
-  echo " 15) import-config   - Import configuration"
+  echo " 12) ollama-pull     - Pull Ollama model"
+  echo " 13) ollama-list     - List Ollama models"
+  echo " 14) ollama-remove   - Remove Ollama model"
+  echo " 15) cleanup         - Clean up old logs and backups"
+  echo " 16) ssl-renew       - Force SSL certificate renewal"
+  echo " 17) export-config   - Export configuration"
+  echo " 18) import-config   - Import configuration"
   echo ""
   echo "  0) exit            - Exit"
   echo ""
@@ -93,6 +96,7 @@ view_logs() {
   echo "  4) Traefik"
   echo "  5) PostgreSQL"
   echo "  6) Redis"
+  echo "  7) Ollama"
   echo ""
   read -p "Choice [1]: " choice
   choice=${choice:-1}
@@ -104,6 +108,7 @@ view_logs() {
   4) docker-compose -f docker/docker-compose.yml --env-file .env logs -f traefik ;;
   5) docker-compose -f docker/docker-compose.yml --env-file .env logs -f postgres ;;
   6) docker-compose -f docker/docker-compose.yml --env-file .env logs -f redis ;;
+  7) docker-compose -f docker/docker-compose.yml --env-file .env logs -f ollama ;;
   *) echo "Invalid choice" ;;
   esac
 }
@@ -241,6 +246,65 @@ reset_password() {
   echo -e "${YELLOW}⚠ Save these passwords securely!${NC}"
 }
 
+ollama_pull_model() {
+  echo -e "${BLUE}Pull Ollama Model${NC}"
+  echo ""
+  echo "Popular models:"
+  echo "  - llama2, llama3, llama3.1"
+  echo "  - mistral, mixtral"
+  echo "  - codellama, phi, gemma, qwen"
+  echo ""
+  read -p "Enter model name to pull: " MODEL_NAME
+
+  if [ -z "$MODEL_NAME" ]; then
+    echo -e "${RED}Model name cannot be empty${NC}"
+    return 1
+  fi
+
+  echo -e "${BLUE}Pulling model: ${MODEL_NAME}${NC}"
+  docker exec chatbridge-ollama ollama pull "$MODEL_NAME"
+
+  if [ $? -eq 0 ]; then
+    echo -e "${GREEN}✓ Model ${MODEL_NAME} pulled successfully${NC}"
+  else
+    echo -e "${RED}✗ Failed to pull model${NC}"
+  fi
+}
+
+ollama_list_models() {
+  echo -e "${BLUE}Installed Ollama Models${NC}"
+  echo ""
+  docker exec chatbridge-ollama ollama list
+}
+
+ollama_remove_model() {
+  echo -e "${BLUE}Remove Ollama Model${NC}"
+  echo ""
+  echo "Currently installed models:"
+  docker exec chatbridge-ollama ollama list
+  echo ""
+  read -p "Enter model name to remove: " MODEL_NAME
+
+  if [ -z "$MODEL_NAME" ]; then
+    echo -e "${RED}Model name cannot be empty${NC}"
+    return 1
+  fi
+
+  read -p "Are you sure you want to remove ${MODEL_NAME}? (y/N): " -n 1 -r
+  echo
+  if [[ $REPLY =~ ^[Yy]$ ]]; then
+    docker exec chatbridge-ollama ollama rm "$MODEL_NAME"
+
+    if [ $? -eq 0 ]; then
+      echo -e "${GREEN}✓ Model ${MODEL_NAME} removed${NC}"
+    else
+      echo -e "${RED}✗ Failed to remove model${NC}"
+    fi
+  else
+    echo "Cancelled"
+  fi
+}
+
 cleanup_old_files() {
   echo -e "${BLUE}Cleaning up old files...${NC}"
   echo ""
@@ -351,10 +415,13 @@ main() {
     9) update_services ;;
     10) reset_password ;;
     11) echo "User management is done through Open WebUI interface" ;;
-    12) cleanup_old_files ;;
-    13) force_ssl_renewal ;;
-    14) export_configuration ;;
-    15) import_configuration ;;
+    12) ollama_pull_model ;;
+    13) ollama_list_models ;;
+    14) ollama_remove_model ;;
+    15) cleanup_old_files ;;
+    16) force_ssl_renewal ;;
+    17) export_configuration ;;
+    18) import_configuration ;;
     0 | "")
       echo "Exiting..."
       exit 0
