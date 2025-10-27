@@ -13,7 +13,21 @@ NC='\033[0m' # No Color
 
 # GitHub repository
 REPO="RobertKozak/ChatBridge"
-INSTALL_DIR="${INSTALL_DIR:-/opt/chatbridge}"
+
+# Detect OS and set appropriate default installation directory
+if [ -z "$INSTALL_DIR" ]; then
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    # macOS - use user's home directory by default
+    INSTALL_DIR="$HOME/chatbridge"
+  else
+    # Linux - use /opt if we have permission, otherwise use home directory
+    if [ -w "/opt" ] || [ "$EUID" -eq 0 ]; then
+      INSTALL_DIR="/opt/chatbridge"
+    else
+      INSTALL_DIR="$HOME/chatbridge"
+    fi
+  fi
+fi
 
 # Print functions
 print_info() {
@@ -86,7 +100,17 @@ if [ -d "$INSTALL_DIR" ]; then
   rm -rf "$INSTALL_DIR"
 fi
 
-mkdir -p "$INSTALL_DIR"
+# Try to create the directory
+if ! mkdir -p "$INSTALL_DIR" 2>/dev/null; then
+  print_error "Cannot create directory: ${INSTALL_DIR}"
+  echo ""
+  echo "You can either:"
+  echo "  1. Run with sudo: curl -fsSL https://raw.githubusercontent.com/${REPO}/main/bootstrap.sh | sudo bash"
+  echo "  2. Specify a different directory: INSTALL_DIR=~/chatbridge curl -fsSL https://raw.githubusercontent.com/${REPO}/main/bootstrap.sh | bash"
+  echo "  3. Create the directory manually with appropriate permissions"
+  exit 1
+fi
+
 cd "$INSTALL_DIR"
 
 # Download release
