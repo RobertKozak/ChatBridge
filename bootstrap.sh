@@ -92,13 +92,68 @@ print_info "Creating installation directory: ${INSTALL_DIR}"
 
 if [ -d "$INSTALL_DIR" ]; then
   print_warning "Directory $INSTALL_DIR already exists."
-  read -p "Do you want to overwrite it? (y/N): " -n 1 -r
+  echo ""
+  echo "What would you like to do?"
+  echo "  1) Continue with existing installation (run/update setup)"
+  echo "  2) Reinstall (keeps your .env configuration, updates everything else)"
+  echo "  3) Fresh install (deletes everything and starts fresh)"
+  echo "  4) Cancel"
+  echo ""
+  read -p "Choice [1]: " -n 1 -r
   echo
-  if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-    print_info "Installation cancelled."
-    exit 0
-  fi
-  rm -rf "$INSTALL_DIR"
+  CHOICE=${REPLY:-1}
+
+  case $CHOICE in
+    1)
+      print_info "Continuing with existing installation..."
+      cd "$INSTALL_DIR"
+
+      # Update scripts from latest release
+      print_info "Updating installation scripts from latest release..."
+      TEMP_FILE="/tmp/chatbridge-update-${TAG_NAME}.tar.gz"
+      if curl -L -f -o "$TEMP_FILE" "$DOWNLOAD_URL"; then
+        # Extract only scripts, not data directories
+        tar -xzf "$TEMP_FILE" --strip-components=1 \
+          --exclude='backups' \
+          --exclude='logs' \
+          --exclude='docker/traefik/acme' \
+          --exclude='postgres_data' \
+          --exclude='redis_data' \
+          --exclude='open-webui_data'
+        rm -f "$TEMP_FILE"
+        print_success "Scripts updated"
+      else
+        print_warning "Could not download update, continuing with existing files..."
+      fi
+      ;;
+    2)
+      print_info "Reinstalling (keeping .env configuration)..."
+
+      # Backup .env if it exists
+      if [ -f "$INSTALL_DIR/.env" ]; then
+        cp "$INSTALL_DIR/.env" "/tmp/chatbridge-env-backup-$$.env"
+        print_success "Configuration backed up"
+      fi
+
+      # Remove installation but keep data
+      cd "$INSTALL_DIR"
+      rm -rf docker setup *.sh *.md docs 2>/dev/null || true
+      cd /
+      ;;
+    3)
+      print_warning "This will DELETE ALL DATA including configurations!"
+      read -p "Are you absolutely sure? Type 'yes' to confirm: " CONFIRM
+      if [ "$CONFIRM" != "yes" ]; then
+        print_info "Installation cancelled."
+        exit 0
+      fi
+      rm -rf "$INSTALL_DIR"
+      ;;
+    4|*)
+      print_info "Installation cancelled."
+      exit 0
+      ;;
+  esac
 fi
 
 # Try to create the directory
@@ -114,42 +169,56 @@ fi
 
 cd "$INSTALL_DIR"
 
-# Download release
-print_info "Downloading ChatBridge ${TAG_NAME}..."
-TEMP_FILE="/tmp/chatbridge-${TAG_NAME}.tar.gz"
+# Download release (skip if we already updated in option 1)
+if [ "$CHOICE" != "1" ]; then
+  print_info "Downloading ChatBridge ${TAG_NAME}..."
+  TEMP_FILE="/tmp/chatbridge-${TAG_NAME}.tar.gz"
 
-if ! curl -L -f -o "$TEMP_FILE" "$DOWNLOAD_URL"; then
-  print_error "Failed to download release."
-  exit 1
-fi
-
-print_success "Download complete"
-
-# Verify download (optional - download checksum and verify)
-CHECKSUM_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url.*sha256\"" | sed -E 's/.*"([^"]+)".*/\1/')
-if [ -n "$CHECKSUM_URL" ]; then
-  print_info "Verifying checksum..."
-  curl -L -s -o "/tmp/chatbridge.sha256" "$CHECKSUM_URL"
-
-  cd /tmp
-  if sha256sum -c chatbridge.sha256 2>/dev/null; then
-    print_success "Checksum verification passed"
-  else
-    print_warning "Checksum verification failed, but continuing..."
+  if ! curl -L -f -o "$TEMP_FILE" "$DOWNLOAD_URL"; then
+    print_error "Failed to download release."
+    exit 1
   fi
-  cd "$INSTALL_DIR"
+
+  print_success "Download complete"
+else
+  # Already downloaded and extracted in option 1
+  SKIP_EXTRACT=true
 fi
 
-# Extract archive
-print_info "Extracting archive..."
-if ! tar -xzf "$TEMP_FILE" --strip-components=1; then
-  print_error "Failed to extract archive."
+# Verify download and extract (skip if we already updated in option 1)
+if [ "$SKIP_EXTRACT" != "true" ]; then
+  # Verify download (optional - download checksum and verify)
+  CHECKSUM_URL=$(echo "$LATEST_RELEASE" | grep "browser_download_url.*sha256\"" | sed -E 's/.*"([^"]+)".*/\1/')
+  if [ -n "$CHECKSUM_URL" ]; then
+    print_info "Verifying checksum..."
+    curl -L -s -o "/tmp/chatbridge.sha256" "$CHECKSUM_URL"
+
+    cd /tmp
+    if sha256sum -c chatbridge.sha256 2>/dev/null; then
+      print_success "Checksum verification passed"
+    else
+      print_warning "Checksum verification failed, but continuing..."
+    fi
+    cd "$INSTALL_DIR"
+  fi
+
+  # Extract archive
+  print_info "Extracting archive..."
+  if ! tar -xzf "$TEMP_FILE" --strip-components=1; then
+    print_error "Failed to extract archive."
+    rm -f "$TEMP_FILE"
+    exit 1
+  fi
+
   rm -f "$TEMP_FILE"
-  exit 1
-fi
+  print_success "Extraction complete"
 
-rm -f "$TEMP_FILE"
-print_success "Extraction complete"
+  # Restore .env if we're reinstalling (option 2)
+  if [ "$CHOICE" = "2" ] && [ -f "/tmp/chatbridge-env-backup-$$.env" ]; then
+    mv "/tmp/chatbridge-env-backup-$$.env" "$INSTALL_DIR/.env"
+    print_success "Configuration restored"
+  fi
+fi
 
 # Verify installation
 print_info "Verifying installation..."
@@ -172,31 +241,55 @@ fi
 # Display next steps
 echo ""
 echo -e "${GREEN}========================================${NC}"
-echo -e "${GREEN}  ChatBridge Bootstrap Complete!${NC}"
+if [ "$CHOICE" = "1" ]; then
+  echo -e "${GREEN}  ChatBridge Update Complete!${NC}"
+elif [ "$CHOICE" = "2" ]; then
+  echo -e "${GREEN}  ChatBridge Reinstall Complete!${NC}"
+else
+  echo -e "${GREEN}  ChatBridge Bootstrap Complete!${NC}"
+fi
 echo -e "${GREEN}========================================${NC}"
 echo ""
 echo "Installation directory: ${INSTALL_DIR}"
 echo ""
-echo "Next steps:"
-echo "  1. cd ${INSTALL_DIR}"
-echo "  2. ./install.sh"
-echo "  3. Follow the prompts to configure your domain and API keys"
+
+if [ -f "$INSTALL_DIR/.env" ]; then
+  echo "Existing configuration detected!"
+  echo ""
+  echo "Next steps:"
+  echo "  1. cd ${INSTALL_DIR}"
+  echo "  2. ./install.sh  (will detect and update existing configuration)"
+  echo ""
+  echo "Or manage services:"
+  echo "  - cd ${INSTALL_DIR} && ./manage.sh"
+  echo "  - cd ${INSTALL_DIR}/docker && docker-compose ps"
+else
+  echo "Next steps:"
+  echo "  1. cd ${INSTALL_DIR}"
+  echo "  2. ./install.sh"
+  echo "  3. Follow the prompts to configure your domain and API keys"
+fi
+
 echo ""
 echo "Documentation:"
-echo "  - Quick Start: cat docs/QUICKSTART.md"
-echo "  - Full README: cat README.md"
-echo "  - VPS Setup: cat docs/VPS_SETUP.md"
+echo "  - Quick Start: cat ${INSTALL_DIR}/docs/QUICKSTART.md"
+echo "  - Full README: cat ${INSTALL_DIR}/README.md"
+echo "  - VPS Setup: cat ${INSTALL_DIR}/docs/VPS_SETUP.md"
 echo ""
 echo -e "${BLUE}For support, visit: https://github.com/${REPO}/issues${NC}"
 echo ""
 
 # Ask if user wants to start installation now
-read -p "Would you like to start the installation now? (Y/n): " -n 1 -r
+if [ -f "$INSTALL_DIR/.env" ]; then
+  read -p "Would you like to run the installer to update your configuration? (Y/n): " -n 1 -r
+else
+  read -p "Would you like to start the installation now? (Y/n): " -n 1 -r
+fi
 echo
 if [[ $REPLY =~ ^[Yy]$ ]] || [[ -z $REPLY ]]; then
-  print_info "Starting installation..."
+  print_info "Starting installer..."
   exec ./install.sh
 else
-  print_info "You can start the installation later by running:"
+  print_info "You can run the installer later by running:"
   echo "  cd ${INSTALL_DIR} && ./install.sh"
 fi

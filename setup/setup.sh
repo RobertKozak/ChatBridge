@@ -806,46 +806,96 @@ load_existing_config() {
 # Backup existing installation
 backup_existing() {
   if [ -f ".env" ]; then
-    print_warning "Existing installation detected"
+    print_warning "Existing ChatBridge installation detected!"
     echo ""
-    echo "Choose an option:"
-    echo "  1) Continue with previous installation (use existing settings)"
-    echo "  2) Start fresh (re-enter all configuration)"
+
+    # Check if services are running
+    if command -v docker &> /dev/null && [ -f "docker/docker-compose.yml" ]; then
+      RUNNING_SERVICES=$(cd docker && docker-compose ps --services --filter "status=running" 2>/dev/null | wc -l || echo "0")
+      if [ "$RUNNING_SERVICES" -gt 0 ]; then
+        print_info "Currently running: $RUNNING_SERVICES service(s)"
+      fi
+    fi
+
+    echo ""
+    echo "What would you like to do?"
+    echo ""
+    echo "  1) Use existing configuration (recommended)"
+    echo "     - Keeps your data and settings"
+    echo "     - Ensures services are running"
+    echo "     - Quick and safe"
+    echo ""
+    echo "  2) Reconfigure installation"
+    echo "     - Update domain, API keys, or deployment type"
+    echo "     - Keeps data volumes"
+    echo "     - Restarts services with new config"
+    echo ""
+    echo "  3) Fresh install (start over)"
+    echo "     - Backs up old config"
+    echo "     - Re-enter all settings"
+    echo "     - Keeps data unless you manually remove volumes"
     echo ""
     read -p "Choice [1]: " choice
     choice=${choice:-1}
     echo ""
 
-    if [ "$choice" = "1" ]; then
-      print_info "Continuing with existing installation..."
-      USE_EXISTING_CONFIG=true
+    case $choice in
+      1)
+        print_info "Using existing configuration..."
+        USE_EXISTING_CONFIG=true
 
-      # Load existing configuration
-      if load_existing_config; then
-        print_success "Using existing configuration"
-        echo "  Domain: ${DOMAIN}"
-        echo "  OpenAI API: ${OPENAI_KEY:+Configured}"
-        echo "  Anthropic API: ${ANTHROPIC_KEY:+Configured}"
-        echo ""
-      else
-        print_error "Failed to load existing configuration. Please start fresh."
+        # Load existing configuration
+        if load_existing_config; then
+          print_success "Configuration loaded:"
+          echo "  Domain: ${DOMAIN}"
+          echo "  Deployment: ${DEPLOYMENT_TYPE}"
+          echo "  OpenAI API: ${OPENAI_KEY:+✓ Configured}"
+          echo "  Anthropic API: ${ANTHROPIC_KEY:+✓ Configured}"
+          echo ""
+          print_info "Will ensure all services are up to date and running"
+          echo ""
+        else
+          print_error "Failed to load configuration. Please choose option 2 or 3."
+          exit 1
+        fi
+        ;;
+
+      2)
+        print_info "Reconfiguring installation..."
+
+        # Load existing config as defaults but allow changes
+        if load_existing_config; then
+          print_success "Loaded current settings (you can change them):"
+          echo "  Current Domain: ${DOMAIN}"
+          echo "  Current Deployment: ${DEPLOYMENT_TYPE}"
+          echo ""
+        fi
+
+        USE_EXISTING_CONFIG=false  # Will prompt for new values
+        ;;
+
+      3)
+        print_info "Starting fresh installation..."
+        USE_EXISTING_CONFIG=false
+
+        # Ask about backup
+        read -p "Backup existing configuration? (Y/n): " -n 1 -r
+        echo
+        if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+          backup_dir="backups/config_backup_$(date +%Y%m%d_%H%M%S)"
+          mkdir -p "$backup_dir"
+          cp -r .env docker "$backup_dir/" 2>/dev/null || true
+          print_success "Backup created in $backup_dir"
+        fi
+        ;;
+
+      *)
+        print_error "Invalid choice"
         exit 1
-      fi
-    else
-      print_info "Starting fresh installation..."
-      USE_EXISTING_CONFIG=false
-
-      # Ask about backup
-      read -p "Backup existing configuration? (Y/n): " -n 1 -r
-      echo
-      if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-        backup_dir="backups/config_backup_$(date +%Y%m%d_%H%M%S)"
-        mkdir -p "$backup_dir"
-        cp -r .env docker "$backup_dir/" 2>/dev/null || true
-        print_success "Backup created in $backup_dir"
-      fi
-    fi
+        ;;
+    esac
   else
+    print_info "No existing installation found - starting fresh"
     USE_EXISTING_CONFIG=false
   fi
 }
