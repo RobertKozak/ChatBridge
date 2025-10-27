@@ -53,7 +53,11 @@ sudo chmod +x /usr/local/bin/docker-compose
 **Option A: One-Command Install (Recommended)**
 
 ```bash
+# Default installation (auto-detects your OS)
 curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | bash
+
+# Or specify a custom directory
+INSTALL_DIR=~/my-chatbridge curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | bash
 ```
 
 **Option B: Manual Install**
@@ -68,8 +72,10 @@ chmod +x bootstrap.sh
 ```
 
 The bootstrap script will:
+- Auto-detect your OS and choose the appropriate directory:
+  - **macOS**: `~/chatbridge` (user directory)
+  - **Linux**: `/opt/chatbridge` (if writable) or `~/chatbridge`
 - Download the latest release
-- Extract to `/opt/chatbridge`
 - Verify all required files
 - Start the installation wizard
 

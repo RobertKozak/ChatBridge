@@ -102,11 +102,14 @@ Traefik (Reverse Proxy + SSL)
 ```bash
 # Download latest release and run installer
 curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | bash
+
+# Or specify a custom installation directory
+INSTALL_DIR=~/my-chatbridge curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | bash
 ```
 
 This will:
 - Download the latest release package
-- Extract to `/opt/chatbridge`
+- Extract to the appropriate directory (macOS: `~/chatbridge`, Linux: `/opt/chatbridge` or `~/chatbridge`)
 - Verify all files are present
 - Run the installation wizard
 - Let you choose deployment type (Cloudflare, Public, or Local)
@@ -127,7 +130,13 @@ cd chatbridge
 ./install.sh
 ```
 
-The installer will:
+The bootstrap script will:
+1. Auto-detect your OS and use the appropriate installation directory:
+   - **macOS**: `~/chatbridge`
+   - **Linux**: `/opt/chatbridge` (if writable) or `~/chatbridge`
+   - **Custom**: Set `INSTALL_DIR` environment variable to override
+
+The installer will then:
 1. Check prerequisites
 2. Ask you to choose deployment type:
    - **Cloudflare Tunnel**: Secure cloud deployment with no port exposure
