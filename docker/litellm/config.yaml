@@ -1,47 +1,5 @@
-model_list:
-  # OpenAI Models
-  - model_name: gpt-4o
-    litellm_params:
-      model: gpt-4o
-      api_key: os.environ/OPENAI_API_KEY
-      timeout: 300
-      max_retries: 3
-
-  - model_name: gpt-4o-mini
-    litellm_params:
-      model: gpt-4o-mini
-      api_key: os.environ/OPENAI_API_KEY
-      timeout: 120
-      max_retries: 3
-
-  - model_name: gpt-3.5-turbo
-    litellm_params:
-      model: gpt-3.5-turbo
-      api_key: os.environ/OPENAI_API_KEY
-      timeout: 120
-      max_retries: 3
-
-  # Anthropic Models
-  - model_name: claude-3-5-sonnet
-    litellm_params:
-      model: claude-3-5-sonnet-20241022
-      api_key: os.environ/ANTHROPIC_API_KEY
-      timeout: 300
-      max_retries: 3
-
-  - model_name: claude-3-5-haiku
-    litellm_params:
-      model: claude-3-5-haiku-20241022
-      api_key: os.environ/ANTHROPIC_API_KEY
-      timeout: 120
-      max_retries: 3
-
-  - model_name: claude-3-opus
-    litellm_params:
-      model: claude-3-opus-20240229
-      api_key: os.environ/ANTHROPIC_API_KEY
-      timeout: 300
-      max_retries: 3
+# Models are managed via the UI and stored in the database
+# This config file contains only infrastructure settings
 
 # Router Settings
 router_settings:
@@ -50,11 +8,7 @@ router_settings:
   redis_port: os.environ/REDIS_PORT
   redis_password: os.environ/REDIS_PASSWORD
   enable_pre_call_checks: true
-  # Fallbacks: map each model to its fallback options
-  fallbacks:
-    - gpt-4o: ["gpt-4o-mini"]
-    - claude-3-5-sonnet: ["claude-3-5-haiku"]
-    - gpt-3.5-turbo: ["gpt-4o-mini"]
+  # Fallbacks are managed via the UI
 
 # General Settings
 litellm_settings:
@@ -95,4 +49,6 @@ general_settings:
   store_model_in_db: true
 
   # UI Settings
-  ui_access_mode: "admin_only"
+  ui_access_mode: "all"
+  ui_username: os.environ/UI_USERNAME
+  ui_password: os.environ/UI_PASSWORD

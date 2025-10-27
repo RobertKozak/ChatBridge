@@ -1,4 +1,4 @@
-tunnel: 7f025965-a6ed-4e28-83df-83a0933818b0
+tunnel: c7ca1cd2-5417-496b-b9d2-f96218134493
 credentials-file: /etc/cloudflared/credentials.json
 
 # Route all traffic to Traefik
@@ -8,6 +8,9 @@ ingress:
     service: http://traefik:80
     originRequest:
       noTLSVerify: true
+      connectTimeout: 30s
+      disableChunkedEncoding: false
+      http2Origin: false
 
   # Route admin.avaluate.ai to LiteLLM via Traefik
   - hostname: admin.avaluate.ai

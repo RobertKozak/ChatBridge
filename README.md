@@ -6,6 +6,26 @@
 
 A complete, turnkey solution combining LiteLLM's intelligent routing with Open WebUI's beautiful interface - secure, production-ready, designed for small businesses.
 
+## Deployment Options
+
+ChatBridge supports three flexible deployment modes:
+
+### 1. **Production with Cloudflare Tunnel** (Recommended)
+- ✅ Secure HTTPS via Cloudflare
+- ✅ No need to expose ports 80/443
+- ✅ Built-in DDoS protection
+- ✅ Requires: Cloudflare account (free), domain name
+
+### 2. **Production with Public Domain** (Traditional)
+- ✅ Direct SSL via Let's Encrypt
+- ✅ Full control over certificates
+- ✅ Requires: Domain name, ports 80/443 accessible
+
+### 3. **Local Development** (Testing)
+- ✅ No domain or SSL needed
+- ✅ Quick setup for testing
+- ✅ Access via http://localhost
+
 ## Features
 
 ### Security
@@ -54,44 +74,71 @@ Traefik (Reverse Proxy + SSL)
 
 ## Prerequisites
 
-- Linux server (Ubuntu 20.04+ recommended)
+### Required for All Deployments:
+- Linux server (Ubuntu 20.04+ recommended) or macOS for local dev
 - Docker 20.10+
 - Docker Compose 2.0+
 - 4GB+ RAM (8GB+ recommended)
 - 20GB+ disk space
-- Domain name with DNS configured
+
+### Additional Requirements by Deployment Type:
+
+**Cloudflare Tunnel:**
+- Cloudflare account (free tier works)
+- Domain name managed in Cloudflare
+- Only SSH port needs to be accessible
+
+**Public Domain:**
+- Domain name with DNS control
 - Ports 80 and 443 accessible
+
+**Local Development:**
+- No additional requirements
 
 ## Quick Start
 
 ### 1. One-Command Installation
 
 ```bash
-# Download and run the setup script
-curl -fsSL https://your-repo/setup.sh | bash
+# Download latest release and run installer
+curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | bash
 ```
+
+This will:
+- Download the latest release package
+- Extract to `/opt/chatbridge`
+- Verify all files are present
+- Run the installation wizard
+- Let you choose deployment type (Cloudflare, Public, or Local)
 
 ### 2. Manual Installation
 
 ```bash
-# Clone or download all files to a directory
-cd /opt/ai-platform
+# Option A: Use bootstrap script
+curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh -o bootstrap.sh
+chmod +x bootstrap.sh
+./bootstrap.sh
 
-# Make setup script executable
-chmod +x setup.sh
-
-# Run the setup script
-./setup.sh
+# Option B: Download specific version manually
+# Visit https://github.com/RobertKozak/ChatBridge/releases/latest
+# Download the .tar.gz file, then:
+tar -xzf chatbridge-v*.tar.gz
+cd chatbridge
+./install.sh
 ```
 
-The script will:
+The installer will:
 1. Check prerequisites
-2. Prompt for configuration (domain, email, API keys)
-3. Generate secure passwords
-4. Create directory structure
-5. Configure services
-6. Start all containers
-7. Display access credentials
+2. Ask you to choose deployment type:
+   - **Cloudflare Tunnel**: Secure cloud deployment with no port exposure
+   - **Public Domain**: Traditional deployment with Let's Encrypt SSL
+   - **Local Development**: Quick localhost setup for testing
+3. Prompt for configuration based on deployment type
+4. Generate secure passwords
+5. Create directory structure
+6. Configure services
+7. Start all containers
+8. Display access credentials and next steps
 
 ## Configuration
 
@@ -117,18 +164,36 @@ MODEL_FILTER_LIST=gpt-4,gpt-3.5-turbo,claude-3-opus
 
 ### DNS Configuration
 
+**For Cloudflare Tunnel:**
+- DNS is automatically configured through Cloudflare Dashboard
+- No need to point domains to your server IP
+- The installer will guide you through the setup
+
+**For Public Domain:**
 Point these domains to your server's IP:
 - `ai.your-domain.com` → Open WebUI
-- `admin.your-domain.com` → LiteLLM API
+- `admin.your-domain.com` → LiteLLM Admin UI
 - `traefik.your-domain.com` → Traefik Dashboard
+
+**For Local Development:**
+- No DNS configuration needed
+- Access via localhost
 
 ## Usage
 
 ### Accessing Services
 
+**Production (Cloudflare or Public Domain):**
 - **Open WebUI**: https://ai.your-domain.com
 - **LiteLLM API**: https://admin.your-domain.com/v1
+- **LiteLLM Admin UI**: https://admin.your-domain.com/ui
 - **Traefik Dashboard**: https://traefik.your-domain.com
+
+**Local Development:**
+- **Open WebUI**: http://localhost:8080
+- **LiteLLM API**: http://localhost:4000/v1
+- **LiteLLM Admin UI**: http://localhost:4000/ui
+- **Traefik Dashboard**: http://localhost:8081
 
 ### API Usage
 
@@ -243,6 +308,20 @@ docker-compose logs traefik | grep "\"POST"
 
 ### 1. Firewall Configuration
 
+**For Cloudflare Tunnel:**
+```bash
+# Enable firewall
+sudo ufw enable
+
+# Allow only SSH (Cloudflare Tunnel handles all other traffic)
+sudo ufw allow 22/tcp
+
+# Deny all other ports
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+```
+
+**For Public Domain:**
 ```bash
 # Enable firewall
 sudo ufw enable
@@ -255,6 +334,12 @@ sudo ufw allow 443/tcp
 # Deny all other ports
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
+```
+
+**For Local Development:**
+```bash
+# No special firewall configuration needed
+# Keep your system firewall enabled
 ```
 
 ### 2. SSL Certificates
@@ -426,7 +511,7 @@ This setup configuration is provided as-is for production use.
 
 ## Security Disclosure
 
-If you discover a security vulnerability, please email security@your-domain.com
+If you discover a security vulnerability, please open an issue on GitHub: https://github.com/RobertKozak/ChatBridge/issues
 
 ---
 

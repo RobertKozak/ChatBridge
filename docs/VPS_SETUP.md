@@ -1,12 +1,17 @@
 # ChatBridge VPS Deployment Guide
 
-**Complete guide for deploying ChatBridge on a VPS with Cloudflare Tunnel**
+**Complete guide for deploying ChatBridge on a VPS**
+
+This guide covers all three deployment options:
+- **Cloudflare Tunnel** (Recommended - most secure)
+- **Public Domain** (Traditional with Let's Encrypt)
+- **Local Development** (Testing only)
 
 ## Table of Contents
 
 1. [Prerequisites](#prerequisites)
 2. [VPS Preparation](#vps-preparation)
-3. [Cloudflare Setup](#cloudflare-setup)
+3. [Deployment Options](#deployment-options)
 4. [Installation](#installation)
 5. [Configuration](#configuration)
 6. [Deployment](#deployment)
@@ -31,7 +36,7 @@
 - **RAM**: 4GB minimum, 8GB recommended
 - **Storage**: 20GB minimum, 40GB recommended
 - **CPU**: 2 cores minimum
-- **Network**: No port restrictions needed (using Cloudflare Tunnel)
+- **Network**: Varies by deployment type (see below)
 
 ---
 
@@ -56,8 +61,9 @@ su - chatbridge
 
 ### 2. Configure Firewall
 
-Since we're using Cloudflare Tunnel, we only need SSH access:
+The firewall configuration depends on your deployment choice:
 
+**For Cloudflare Tunnel (Recommended):**
 ```bash
 # Enable firewall
 sudo ufw default deny incoming
@@ -67,6 +73,24 @@ sudo ufw enable
 sudo ufw status
 
 # Note: We do NOT need to open ports 80/443 - Cloudflare Tunnel handles this
+```
+
+**For Public Domain:**
+```bash
+# Enable firewall
+sudo ufw default deny incoming
+sudo ufw default allow outgoing
+sudo ufw allow ssh
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw enable
+sudo ufw status
+```
+
+**For Local Development:**
+```bash
+# Use default system firewall
+# No special ports need to be opened
 ```
 
 ### 3. Install Docker
@@ -97,7 +121,50 @@ cd /opt/chatbridge
 
 ---
 
-## Cloudflare Setup
+## Deployment Options
+
+### Option 1: Cloudflare Tunnel (Recommended)
+
+**Advantages:**
+- ✅ No need to expose ports 80/443
+- ✅ DDoS protection included
+- ✅ SSL automatically provided by Cloudflare
+- ✅ Can work behind restrictive firewalls
+- ✅ Free tier available
+
+**Requirements:**
+- Cloudflare account (free)
+- Domain managed in Cloudflare
+- cloudflared installed
+
+### Option 2: Public Domain (Traditional)
+
+**Advantages:**
+- ✅ Full control over SSL certificates
+- ✅ Direct connection to your server
+- ✅ No third-party dependencies
+- ✅ Let's Encrypt (free) SSL
+
+**Requirements:**
+- Domain with DNS control
+- Ports 80 and 443 accessible
+- Email for Let's Encrypt notifications
+
+### Option 3: Local Development
+
+**Advantages:**
+- ✅ No domain needed
+- ✅ Quick setup
+- ✅ Perfect for testing
+
+**Limitations:**
+- ⚠️ No SSL (HTTP only)
+- ⚠️ Not suitable for production
+- ⚠️ localhost access only
+
+---
+
+## Cloudflare Tunnel Setup (Option 1 Only)
 
 ### 1. Add Domain to Cloudflare
 
@@ -157,81 +224,90 @@ The tunnel credentials are stored at `~/.cloudflared/TUNNEL_ID.json`. We'll copy
 
 ## Installation
 
-### 1. Clone/Download ChatBridge
+### 1. Download ChatBridge
+
+**Option A: Use Bootstrap Script (Recommended)**
+
+```bash
+# Download and run bootstrap
+curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh | INSTALL_DIR=/opt/chatbridge bash
+```
+
+**Option B: Manual Download**
 
 ```bash
 cd /opt/chatbridge
 
-# If using git
-git clone https://github.com/yourusername/ChatBridge.git .
+# Download bootstrap script
+curl -fsSL https://raw.githubusercontent.com/RobertKozak/ChatBridge/main/bootstrap.sh -o bootstrap.sh
+chmod +x bootstrap.sh
 
-# Or download and extract files manually
-# Make sure you have these directories:
-# - docker/
-# - setup/
-# - docs/
+# Set installation directory and run
+INSTALL_DIR=/opt/chatbridge ./bootstrap.sh
 ```
 
-### 2. Copy Cloudflare Tunnel Credentials
+**Option C: From Source (Development)**
 
 ```bash
-# Create cloudflared config directory
-mkdir -p docker/cloudflared
-
-# Copy credentials (replace TUNNEL_ID with your actual tunnel ID)
-cp ~/.cloudflared/TUNNEL_ID.json docker/cloudflared/credentials.json
-chmod 600 docker/cloudflared/credentials.json
-
-# Note your Tunnel ID - you'll need it for config.yml
+cd /opt/chatbridge
+git clone https://github.com/RobertKozak/ChatBridge.git .
 ```
 
-### 3. Create Cloudflare Tunnel Configuration
+The bootstrap script automatically downloads the latest stable release package.
 
-Create `docker/cloudflared/config.yml`:
+> **Note:** The installer will ask you to choose your deployment type (Cloudflare, Public Domain, or Local). Make your choice based on the deployment options section above.
 
-```yaml
-tunnel: YOUR_TUNNEL_ID  # Replace with your actual tunnel ID
-credentials-file: /etc/cloudflared/credentials.json
+### 2. Cloudflare Tunnel Credentials (Cloudflare Deployment Only)
 
-# Route all traffic to Traefik
-ingress:
-  # Route ai.DOMAIN to Open WebUI via Traefik
-  - hostname: ai.DOMAIN  # Replace DOMAIN with your domain
-    service: http://traefik:80
-    originRequest:
-      noTLSVerify: true
+> **Skip this section if using Public Domain or Local deployment**
 
-  # Route admin.DOMAIN to LiteLLM via Traefik
-  - hostname: admin.DOMAIN  # Replace DOMAIN with your domain
-    service: http://traefik:80
-    originRequest:
-      noTLSVerify: true
+The installer will guide you through this, but you can prepare beforehand:
 
-  # Route traefik.DOMAIN to Traefik dashboard
-  - hostname: traefik.DOMAIN  # Replace DOMAIN with your domain
-    service: http://traefik:80
-    originRequest:
-      noTLSVerify: true
+```bash
+# Install cloudflared (if not using the installer's guidance)
+wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
+sudo dpkg -i cloudflared-linux-amd64.deb
 
-  # Catch-all rule (required)
-  - service: http_status:404
+# Authenticate and create tunnel
+cloudflared tunnel login
+cloudflared tunnel create chatbridge
+
+# Note the Tunnel ID - the installer will ask for this
 ```
+
+The installer will automatically:
+- Copy your credentials
+- Generate the config.yml
+- Set up DNS routes
+- Configure ingress rules
 
 ---
 
 ## Configuration
 
-### 1. Create Environment File
+> **Note:** The installer handles all of this automatically. This section is for reference only.
 
-```bash
-# Copy the example environment file
-cp .env.example .env
+### The Installer Will Configure:
 
-# Edit the environment file
-vim .env
-```
+**For All Deployments:**
+- Database passwords
+- Redis passwords
+- LiteLLM master key
+- API keys (OpenAI, Anthropic)
 
-### 2. Configure Required Variables
+**For Cloudflare Tunnel:**
+- Domain name
+- Tunnel configuration
+- DNS routes
+
+**For Public Domain:**
+- Domain name
+- Email for SSL certificates
+
+**For Local:**
+- No domain or SSL configuration needed
+
+### Manual Configuration (Advanced Users)
 
 Edit `.env` with your actual values:
 
@@ -417,14 +493,14 @@ docker compose restart open-webui
 
 ### 4. Configure Additional Models (Optional)
 
-Edit `docker/litellm/config.yaml` to add/remove models:
+Add/remove models via the LiteLLM Admin UI:
 
-```bash
-vim /opt/chatbridge/docker/litellm/config.yaml
+1. Visit https://admin.DOMAIN/ui
+2. Navigate to "Models" section
+3. Add new models or edit existing ones
+4. All changes are stored in the database and persist across restarts
 
-# After changes, restart LiteLLM
-docker compose restart litellm
-```
+> **Note**: Models are now managed via the database, not config files. The config file only contains infrastructure settings.
 
 ---
 
@@ -809,8 +885,9 @@ For high-traffic deployments:
 
 ### Documentation
 - **Quick Start**: See `docs/QUICKSTART.md`
-- **API Reference**: See `docs/QUICK_REFERENCE.txt`
+- **Main README**: See `README.md`
 - **Docker Compose**: See `docker/docker-compose.yml`
+- **LiteLLM API Docs**: https://docs.litellm.ai
 
 ### Logs Location
 - **Application Logs**: `docker compose logs [service]`

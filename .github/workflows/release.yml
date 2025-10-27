@@ -34,50 +34,36 @@ jobs:
 
       - name: Create directory structure
         run: |
-          mkdir -p release/chatbridge
-          mkdir -p release/chatbridge/traefik/dynamic
-          mkdir -p release/chatbridge/litellm
-          mkdir -p release/chatbridge/backups
-          mkdir -p release/chatbridge/logs
+          mkdir -p release/chatbridge/setup
+          mkdir -p release/chatbridge/docker/traefik/dynamic
+          mkdir -p release/chatbridge/docker/litellm
+          mkdir -p release/chatbridge/docs
 
       - name: Copy core files
         run: |
-          # Core configuration files
-          cp docker/docker-compose.yml release/chatbridge/
+          # Root files
+          cp install.sh release/chatbridge/
           cp .env.example release/chatbridge/
-          cp .gitignore release/chatbridge/
+          cp README.md release/chatbridge/
+          chmod +x release/chatbridge/install.sh
 
-          # Traefik configuration
-          cp docker/traefik/traefik.yml release/chatbridge/traefik/
-          cp docker/traefik/dynamic/security.yml release/chatbridge/traefik/dynamic/
+          # Docker files
+          cp docker/docker-compose.yml release/chatbridge/docker/
+          cp docker/init-db.sql release/chatbridge/docker/
+          cp docker/traefik/traefik.yml release/chatbridge/docker/traefik/
+          cp docker/traefik/dynamic/security.yml release/chatbridge/docker/traefik/dynamic/
+          cp docker/litellm/config.yaml release/chatbridge/docker/litellm/
 
-          # LiteLLM configuration
-          cp docker/litellm/config.yaml release/chatbridge/litellm/
-
-          # Scripts
-          cp setup/setup.sh release/chatbridge/
-          cp setup/manage.sh release/chatbridge/
-          cp setup/health-check.sh release/chatbridge/
-          cp setup/backup-script.sh release/chatbridge/
-          chmod +x release/chatbridge/*.sh
+          # Setup scripts
+          cp setup/setup.sh release/chatbridge/setup/
+          cp setup/manage.sh release/chatbridge/setup/
+          cp setup/health-check.sh release/chatbridge/setup/
+          cp setup/backup-script.sh release/chatbridge/setup/
+          chmod +x release/chatbridge/setup/*.sh
 
           # Documentation
-          cp README.md release/chatbridge/
-          cp QUICKSTART.md release/chatbridge/
-          cp FILE_STRUCTURE.md release/chatbridge/
-          cp INSTALLATION_INSTRUCTIONS.txt release/chatbridge/
-          cp QUICK_REFERENCE.txt release/chatbridge/
-          cp DELIVERY_SUMMARY.txt release/chatbridge/
-          cp COMPLETE_PACKAGE_README.txt release/chatbridge/
-          cp CHATBRIDGE_README.md release/chatbridge/
-          cp CHATBRIDGE_LOGO.txt release/chatbridge/
-
-      - name: Create database init script
-        run: |
-          # Add init-db.sql if it exists
-          if [ -f init-db.sql ]; then
-            cp init-db.sql release/chatbridge/
-          fi
+          cp docs/QUICKSTART.md release/chatbridge/docs/
+          cp docs/VPS_SETUP.md release/chatbridge/docs/
 
       - name: Generate release notes
         id: release_notes
@@ -99,12 +85,13 @@ jobs:
 
           ## Quick Start
 
-          1. Extract the archive
-          2. Run: `./setup/setup.sh`
-          3. Configure your domain and API keys
-          4. Access at: https://ai.your-domain.com
+          1. Extract the archive: `tar -xzf chatbridge-*.tar.gz`
+          2. Change directory: `cd chatbridge`
+          3. Run installer: `./install.sh`
+          4. Follow prompts to configure your domain and API keys
+          5. Access at: https://ai.your-domain.com
 
-          For detailed instructions, see `INSTALLATION_INSTRUCTIONS.txt`
+          For detailed instructions, see `README.md` and `docs/QUICKSTART.md`
 
           ## System Requirements
 
@@ -172,7 +159,9 @@ jobs:
 
           # Check for required files
           required_files=(
+            "install.sh"
             "docker/docker-compose.yml"
+            "docker/init-db.sql"
             ".env.example"
             "setup/setup.sh"
             "setup/manage.sh"
@@ -181,6 +170,8 @@ jobs:
             "docker/traefik/traefik.yml"
             "docker/traefik/dynamic/security.yml"
             "docker/litellm/config.yaml"
+            "README.md"
+            "docs/QUICKSTART.md"
           )
 
           missing_files=0
@@ -198,7 +189,7 @@ jobs:
             echo "✅ All required files present"
             echo ""
             echo "Next steps:"
-            echo "1. Run: ./setup/setup.sh"
+            echo "1. Run: ./install.sh"
             echo "2. Follow the prompts to configure your domain and API keys"
             echo "3. Wait for services to start"
             echo "4. Access Open WebUI at https://ai.your-domain.com"
